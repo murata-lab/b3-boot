@@ -1,6 +1,6 @@
 # MNIST・配布モデル・実測記録
 
-`reference/` は、同じ章の `model.py`・`data.py`・`train.py`・`evaluate.py` で作った学習済みモデルと記録です。教材の初期表示は、この実測例を使います。学習者が作る `outputs/05-pytorch/` の結果とは区別します。
+`reference/` は、同じ章の `model.py`・`data.py`・`train.py`・`evaluate.py` で作った学習済みモデルと記録です。CLIによる学習・評価の参考例として同梱しています。学習者が作る `outputs/05-pytorch/` の結果とは区別します。
 
 ## データの出典と画像
 
@@ -25,7 +25,7 @@ MLP：784→128→10、ReLU、画素値を255で割る前処理。CPU、Adam、�
 - [evaluation.json](reference/evaluation.json)：テスト全体の結果と表示画像。
 - [benchmarks.json](benchmarks.json)：訓練20,000・30,000・40,000・55,000枚、各seed 42・43・44の検証精度と時間。採用40,000枚は全seedで95%以上かつ55,000枚との差1ポイント以内。
 
-環境により再生成時の数値に小さな違いが出る場合があります。再現条件の詳細は `run.json` で確認できます。A01では同じモデルの `relu(hidden(flatten(images)))` の128次元出力を観察できます。
+環境により再生成時の数値に小さな違いが出る場合があります。再現条件の詳細は `run.json` で確認できます。
 
 ## 再生成する
 
