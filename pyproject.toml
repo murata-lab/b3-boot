@@ -1,0 +1,23 @@
+[project]
+name = "b3-ml-bootcamp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "marimo>=0.24.0",
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.3",
+    "torch>=2.14.0",
+    "torchvision>=0.29.0",
+]
+
+# macOS uses PyPI wheels; Windows/Linux use the smaller CPU-only PyTorch wheels.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]

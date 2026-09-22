@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{font:15px/1.7 system-ui,-apple-system,sans-serif;color:#283b4a;background:#fff;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;padding:10px 8px}figure{margin:0}svg{display:block;width:100%;height:250px;overflow:visible}
+svg text{font:14px system-ui,sans-serif;fill:#526575}.toolbar{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0 8px}
+button{font:inherit;font-size:14px;border:1px solid #bcc8d1;border-radius:6px;padding:7px 14px;background:#fff;color:#283b4a;cursor:pointer;min-height:40px}
+button:hover:enabled{background:#eef4f8}button:disabled{opacity:.4;cursor:default}button:focus-visible{outline:3px solid #2563a6;outline-offset:2px}button[aria-pressed=true]{background:#e9f2fa;border-color:#2563a6}
+#readout{margin:0;text-align:center;font-variant-numeric:tabular-nums;font-size:14px}figcaption{font-size:13px;color:#526575;margin-top:10px;line-height:1.7}
+#current{transition:cx .35s ease,cy .35s ease}@media(prefers-reduced-motion:reduce){#current{transition:none}}
+</style>
+</head>
+<body>
+<figure aria-label="勾配降下法による重みの更新">
+<svg id="plot" role="img" aria-label="重みと損失の曲線。青い点が現在の重み、橙の線がその位置の傾き。"></svg>
+<div class="toolbar" role="group" aria-label="更新の操作">
+<button id="back" type="button">戻る</button>
+<button id="next" type="button">進む</button>
+<button id="play" type="button" aria-pressed="false">ループ再生</button>
+</div>
+<p id="readout" role="status" aria-live="polite"></p>
+<figcaption>図4　青い点が現在の重み、橙の線が傾き。6点の平均損失を使い、学習率0.3で更新する（b=0固定）。</figcaption>
+</figure>
+<script>
+/* DATA */
+/* PLAYER */
+</script>
+</body>
+</html>

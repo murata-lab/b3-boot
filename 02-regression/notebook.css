@@ -1,0 +1,47 @@
+/* Lesson layout and native marimo controls (including their shadow roots). */
+
+.lesson {color:var(--text-color,#233649);line-height:1.75}
+.lesson.figure {margin:14px 0;padding:12px;border:1px solid #dbe4ed;border-radius:14px;background:#fff;color:#233649}
+.lesson svg text {font:17px ui-sans-serif,system-ui,-apple-system,sans-serif}
+.lesson .small {font-size:13px;color:#65758a;margin:4px 6px}
+.lesson.metrics {display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
+.lesson .metric {flex:1;min-width:130px;border:1px solid #dbe4ed;border-radius:10px;padding:12px 18px;background:#f6f9fc;color:#233649}
+.lesson .metric span {display:block;font-size:13px;color:#52687c}
+.lesson .metric strong {font-size:25px;letter-spacing:-.03em}
+.lesson.table-wrap {overflow-x:auto;margin:12px 0}
+.lesson table {border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+.lesson th,.lesson td {padding:9px 12px;border-bottom:1px solid #dbe4ed;text-align:right;white-space:nowrap}
+.lesson th {font-weight:600;color:#52687c;background:#f6f9fc}
+.lesson .chosen {background:#e8f2fc;color:#163f70;font-weight:600}
+.lesson.hero {border-top:5px solid #2563a6;background:#f1f6fb;border-radius:12px;padding:28px 32px;color:#233649}
+.lesson.hero .eyebrow {color:#2563a6;font-size:13px;letter-spacing:.13em;font-weight:700}
+.lesson.hero h1 {font-size:30px;line-height:1.45;margin:8px 0 12px}
+.lesson.hero p {margin:0}
+.experiment {margin:12px 0;padding:22px 24px;border:1px solid #dbe4ed;border-radius:16px;background:var(--background,#fff);box-shadow:0 3px 12px #23364906}
+.experiment .experiment-title {font-size:13px;font-weight:700;letter-spacing:.06em;color:#2563a6;margin-bottom:16px}
+.experiment .control-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;margin:8px 0}
+.experiment .control-grid>* {min-width:0}
+:host(marimo-slider) [data-testid="track"] {height:6px;background:#dfe8ef}
+:host(marimo-slider) [data-testid="range"] {background:#2563a6}
+:host(marimo-slider) [role="slider"] {width:20px;height:20px;border:2px solid #2563a6;background:#fff;box-shadow:0 2px 5px #23364925}
+:host(marimo-slider) [role="slider"]:focus-visible {outline:3px solid #93bce8;outline-offset:3px}
+:host(marimo-slider) input {font-variant-numeric:tabular-nums}
+:host(marimo-radio) [role="radiogroup"] {flex-wrap:wrap;gap:8px}
+:host(marimo-radio) [role="radiogroup"]>div {padding:8px 12px;border:1px solid #dbe4ed;border-radius:9px}
+:host(marimo-radio) [role="radiogroup"]>div:has([data-state="checked"]) {border-color:#2563a6;background:#2563a610}
+.experiment .formula {border-top:1px solid #dbe4ed;padding-top:14px;margin-top:4px;overflow-x:auto}
+.experiment .hint {font-size:13px;color:var(--muted-foreground,#65758a);line-height:1.7}
+@media(max-width:600px){.experiment{padding:16px}.experiment .control-grid{grid-template-columns:1fr;gap:16px}}
+@media(max-width:600px){.lesson.hero{padding:18px}.lesson.hero h1{font-size:25px}.lesson.figure{padding:3px}.lesson svg text{font-size:15px}}
+
+:host(marimo-slider) [data-rac] > div:has(> input) {height:34px;border-radius:8px;border-color:#dbe4ed;box-shadow:none;background:var(--background,#fff)}
+:host(marimo-slider) input {text-align:center;font-size:14px}
+:host(marimo-slider) [data-rac] button {padding:0 4px}
+:host(marimo-slider) [role="slider"][data-disabled] {opacity:.4}
+:host(marimo-slider) .mo-label {gap:12px}
+:host(marimo-slider) .mo-label > div:last-child > .text-xs {min-width:88px;min-height:34px;display:flex;align-items:center;justify-content:center;border:1px solid #dbe4ed;border-radius:8px;font:14px ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--text-color,#233649);background:var(--background,#fff)}
+:host(marimo-radio) [role="radiogroup"] {display:flex;flex-wrap:wrap;gap:8px}
+:host(marimo-radio) .mo-label {flex-direction:column;align-items:flex-start;gap:12px;width:100%}
+:host(marimo-radio) [role="radiogroup"] > div:has(button:focus-visible) {outline:3px solid #93bce8;outline-offset:2px}
+:host(marimo-button) button {border-radius:8px;padding:8px 14px;min-height:36px;box-shadow:none}
+:host(marimo-button) button:disabled {opacity:.45}

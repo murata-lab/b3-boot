@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B3 機械学習入門</title>
+  <link rel="stylesheet" href="/portal.css">
+  <script src="/portal.js" defer></script>
+</head>
+<body>
+  <header class="toolbar">
+    <button id="menu" class="icon-button" aria-label="教材メニューを開く" aria-expanded="false" aria-controls="sidebar">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <a class="brand" href="#/">B3 <span>機械学習入門</span></a>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <span id="current-title">教材一覧</span>
+  </header>
+  <dialog id="sidebar" aria-labelledby="nav-title">
+    <div class="sidebar-heading"><h2 id="nav-title">学習メニュー</h2><button id="close-menu" class="icon-button" aria-label="教材メニューを閉じる">✕</button></div>
+    <nav id="navigation" aria-label="教材"><a class="home-link" href="#/">教材一覧</a><p class="nav-label">本編</p></nav>
+    <p class="sidebar-note">章を行き来しながら、自分のペースで。</p>
+  </dialog>
+  <main id="main">
+    <section id="home" aria-labelledby="home-title">
+      <div class="intro"><p class="eyebrow">B3 ML BOOTCAMP</p><h1 id="home-title" tabindex="-1">コードを読む。<br>機械学習が、見えてくる。</h1><p class="lead">Pythonの基本から、ニューラルネットワークへ。<br>説明を読み、図を動かしながら、一歩ずつ学びます。</p><a class="start-link" href="#/01-python">01 Python入門からはじめる <span aria-hidden="true">↗</span></a></div>
+      <div class="section-heading"><h2>教材一覧</h2><span>全5章 · 01–05 公開中</span></div>
+      <div id="chapters" class="chapters"></div>
+      <p class="home-note">左上の <span aria-hidden="true">☰</span> メニューから、いつでも章を移動できます。<br>開いた章の操作状態は、このページを閉じる・再読み込みするまで保持されます。</p>
+    </section>
+    <div id="status" role="status" hidden><p id="status-message"></p><button id="retry" hidden>もう一度開く</button></div>
+    <div id="lessons" hidden></div>
+  </main>
+</body>
+</html>

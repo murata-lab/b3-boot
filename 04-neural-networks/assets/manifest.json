@@ -1,0 +1,71 @@
+{
+  "dataset": "MNIST",
+  "split": "train",
+  "selection": "First six images of label 3, then first six of label 5, in original training order; no prediction-based selection.",
+  "source": "https://storage.googleapis.com/cvdf-datasets/mnist/",
+  "images_sha256": "440fcabf73cc546fa21475e81ea370265605f56be210a4024d2ca8f203523609",
+  "labels_sha256": "3552534a0a558bbed6aed32b30c495cca23d567ec52cac8be1a0730e8010255c",
+  "conversion": "Lossless 28x28 grayscale PNG; original pixel values unchanged.",
+  "images": [
+    {
+      "index": 7,
+      "label": 3,
+      "file": "mnist-train-00007-label-3.png"
+    },
+    {
+      "index": 10,
+      "label": 3,
+      "file": "mnist-train-00010-label-3.png"
+    },
+    {
+      "index": 12,
+      "label": 3,
+      "file": "mnist-train-00012-label-3.png"
+    },
+    {
+      "index": 27,
+      "label": 3,
+      "file": "mnist-train-00027-label-3.png"
+    },
+    {
+      "index": 30,
+      "label": 3,
+      "file": "mnist-train-00030-label-3.png"
+    },
+    {
+      "index": 44,
+      "label": 3,
+      "file": "mnist-train-00044-label-3.png"
+    },
+    {
+      "index": 0,
+      "label": 5,
+      "file": "mnist-train-00000-label-5.png"
+    },
+    {
+      "index": 11,
+      "label": 5,
+      "file": "mnist-train-00011-label-5.png"
+    },
+    {
+      "index": 35,
+      "label": 5,
+      "file": "mnist-train-00035-label-5.png"
+    },
+    {
+      "index": 47,
+      "label": 5,
+      "file": "mnist-train-00047-label-5.png"
+    },
+    {
+      "index": 65,
+      "label": 5,
+      "file": "mnist-train-00065-label-5.png"
+    },
+    {
+      "index": 100,
+      "label": 5,
+      "file": "mnist-train-00100-label-5.png"
+    }
+  ]
+}

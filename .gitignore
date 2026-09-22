@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+__marimo__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Downloaded MNIST and locally generated training results
+/data/
+/outputs/
+
+# macOS metadata
+.DS_Store
