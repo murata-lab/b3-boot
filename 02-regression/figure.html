@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --ink:#1f2a37;--ink-2:#4b5866;--muted:#6b7785;--grid:#e6eaef;--axis:#b5bec8;--surface:#fff;--wash:#f3f6f9;
+  color-scheme:light;font:15px/1.6 "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  color:var(--ink);background:var(--surface);
+}
+*{box-sizing:border-box}
+html{overflow:hidden}
+body{margin:0;padding:6px 2px 10px}
+figure{margin:0}
+figcaption{font-size:13.5px;color:var(--ink-2);line-height:1.75;margin-top:12px}
+svg{display:block;overflow:visible;touch-action:none}
+svg text{font-size:12.5px;fill:var(--muted)}
+svg text.ink{fill:var(--ink)}
+svg text.strong{fill:var(--ink);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:18px 28px}
+.panel{flex:1 1 300px;min-width:0}
+.panel h4{font-size:14px;font-weight:600;margin:0 0 6px}
+.panel h4 span{font-weight:400;color:var(--ink-2);margin-left:10px;font-variant-numeric:tabular-nums}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:0 0 14px}
+.control{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;font-size:14px;color:var(--ink-2);white-space:nowrap}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--axis);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--grid);background:var(--surface);min-width:40px;height:36px;padding:0 10px;
+  font:inherit;font-size:14px;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--wash)}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.btn{border:1px solid var(--axis);border-radius:8px;background:var(--surface);height:36px;padding:0 14px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+.btn:hover{background:var(--wash)}
+.btn[aria-pressed=true]{border-color:var(--ink);background:var(--wash)}
+button:focus-visible{outline:3px solid #86b6ef;outline-offset:2px}
+svg:focus{outline:none}
+label.check{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);cursor:pointer}
+label.check input{width:16px;height:16px;accent-color:var(--ink)}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.step{font-size:13px;padding:3px 12px;border-radius:999px;background:var(--wash);color:var(--muted)}
+.step.now{background:var(--ink);color:#fff}
+.step.done{color:var(--ink-2)}
+.status{font-size:14.5px;line-height:1.75;color:var(--ink);min-height:1.75em;margin:0 0 10px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;min-height:36px}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#34414f}
+.legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13.5px;color:var(--ink-2);margin:0 0 8px;font-variant-numeric:tabular-nums}
+.legend b{color:var(--ink);font-weight:600}
+.key{display:inline-flex;align-items:center;gap:6px}
+.m{font-family:"Times New Roman","STIX Two Text",Times,serif;font-style:italic;font-size:1.1em}
+.legend svg{display:inline-block}
+.tip{position:fixed;left:0;top:0;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;line-height:1.5;padding:5px 9px;border-radius:6px;
+  white-space:nowrap;opacity:0;transition:opacity .08s;z-index:10}
+</style>
+</head>
+<body>
+<figure id="root"></figure>
+<div class="tip" id="tip" role="status"></div>
+<script>
+/* CONFIG */
+/* FIGURES */
+</script>
+</body>
+</html>
