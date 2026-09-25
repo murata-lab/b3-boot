@@ -20,7 +20,7 @@ wheels = [
 ]
 
 [[package]]
-name = "b3-ml-bootcamp"
+name = "ml-bootcamp"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

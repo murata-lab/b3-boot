@@ -63,7 +63,7 @@ async function route() {
   retry.hidden = true;
   const title = chapter ? `${chapter.number} ${chapter.title}` : "教材一覧";
   document.querySelector("#current-title").textContent = title;
-  document.title = chapter ? `${title} | B3 機械学習入門` : "B3 機械学習入門";
+  document.title = chapter ? `${title} | 機械学習入門` : "機械学習入門";
   for (const link of sidebar.querySelectorAll("a")) {
     if (link.hash === (id ? `#/${id}` : "#/")) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");

@@ -1,588 +1,855 @@
 import marimo
 
 __generated_with = "0.24.0"
-app = marimo.App(width="medium", app_title="03 線形分類と勾配降下法")
+app = marimo.App(width="medium", app_title="03 線形分類と勾配降下法", css_file="notebook.css")
 
 
 @app.cell(hide_code=True)
 def _():
+    import json
+    from pathlib import Path
+
     import marimo as mo
     import numpy as np
 
-    return mo, np
+    return Path, json, mo, np
 
 
 @app.cell(hide_code=True)
-def classification_core(np):
-    from pathlib import Path
-    from html import escape
-    import json
+def _(Path, json, mo):
+    _root = Path(__file__).resolve().parent
+    _shell = (_root / "figure.html").read_text(encoding="utf-8")
+    _script = (_root / "figures.js").read_text(encoding="utf-8")
 
-    X = np.array([-3., -2., -1., 1., 2., 3.])[:, None]
-    Y = np.array([0., 1., 0., 1., 0., 1.])
-    BLUE, ORANGE, PURPLE = '#2563a6', '#bb6025', '#7856a3'
+    def figure(name, data, caption="", height=380):
+        """figures.js の図を一つ埋め込む。高さは表示後に内容へ合わせて自動で変わる。"""
+        config = json.dumps({"name": name, "data": data, "caption": caption}, ensure_ascii=False, allow_nan=False)
+        html = _shell.replace("/* CONFIG */", "const CONFIG = " + config.replace("</", "<\\/") + ";")
+        return mo.iframe(html.replace("/* FIGURES */", _script), height=f"{height}px")
 
+    def check(choice, answer, explanation):
+        """確認問題の答え合わせ。選ぶまでは何も表示しない。"""
+        if choice.value is None:
+            return mo.md("")
+        correct = choice.value == answer
+        head = "**正解です。**" if correct else f"**正解は「{answer}」です。**"
+        return mo.callout(mo.md(head + " " + explanation), kind="success" if correct else "warn")
+
+    return check, figure
+
+
+@app.cell(hide_code=True)
+def _(np):
     def sigmoid(s):
-        return np.exp(-np.logaddexp(0., -np.asarray(s, dtype=float)))
+        return np.exp(-np.logaddexp(0.0, -np.asarray(s, dtype=float)))
 
-    def loss_gradient(x, y, theta):
-        x, y, theta = np.asarray(x), np.asarray(y), np.asarray(theta)
-        scores = x @ theta[:-1] + theta[-1]
-        error = sigmoid(scores) - y
-        return float(np.mean(np.logaddexp(0., scores)-y*scores)), np.r_[x.T @ error / len(y), error.mean()]
+    def cross_entropy(w, b, x, y):
+        """平均の交差エントロピー。s = wx + b のとき −log q = log(1 + e^s) − ys なので、log(0) を避けてこう計算する。"""
+        s = w * np.asarray(x) + b
+        return float(np.mean(np.logaddexp(0.0, s) - y * s))
 
-    def softmax_loss(scores, label):
-        scores = np.asarray(scores, dtype=float)
-        shifted = scores - scores.max()
-        logsum = np.log(np.exp(shifted).sum())
-        return np.exp(shifted-logsum), float(logsum-shifted[label])
+    def slope(w, x, y):
+        """b = 0 のときの損失の傾き L'(w)。"""
+        return float(np.mean((sigmoid(w * x) - y) * x))
 
-    def history(eta=.3, epochs=9, batch_size=6, fixed_bias=True):
-        theta = np.array([-1., 0.])
-        rng = np.random.default_rng(31)
-        states = [dict(theta=theta.tolist(), loss=loss_gradient(X,Y,theta)[0])]
-        for _epoch in range(epochs):
-            order = rng.permutation(len(Y))
-            for ids in np.array_split(order, len(Y)//batch_size):
-                _, g = loss_gradient(X[ids],Y[ids],theta)
-                if fixed_bias:
-                    g[-1] = 0.
-                theta = theta-eta*g
-                states.append(dict(theta=theta.tolist(), loss=loss_gradient(X,Y,theta)[0]))
+    def descend(x, y, eta, steps, w=0.0):
+        """b = 0 に固定し、w だけを勾配降下法で更新する。更新前と各更新後の w・損失・傾きを返す。"""
+        states = []
+        for _ in range(steps + 1):
+            states.append({"w": w, "loss": cross_entropy(w, 0.0, x, y), "grad": slope(w, x, y)})
+            w = w - eta * slope(w, x, y)
         return states
 
-    def chart(series, *, xlim, ylim, xlabel, ylabel, xticks, yticks, width=720, height=280,
-              dots=(), rings=(), background='', annotation=None):
-        left, right, top, bottom = 52, 18, 34, 46
-        sx = lambda x: left+(float(x)-xlim[0])/(xlim[1]-xlim[0])*(width-left-right)
-        sy = lambda y: top+(ylim[1]-float(y))/(ylim[1]-ylim[0])*(height-top-bottom)
-        bits=[f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(ylabel)}と{escape(xlabel)}の関係">']
-        for y in yticks:
-            bits.append(f'<path d="M{left},{sy(y)}H{width-right}" stroke="#edf0f3"/><text x="{left-9}" y="{sy(y)+4}" text-anchor="end">{y:g}</text>')
-        for x in xticks:
-            bits.append(f'<text x="{sx(x)}" y="{height-bottom+22}" text-anchor="middle">{x:g}</text>')
-        bits.append(f'<path d="M{left},{top}V{height-bottom}H{width-right}" fill="none" stroke="#a7b4bf"/><text x="{left}" y="18">{escape(ylabel)}</text><text x="{width-right}" y="{height-5}" text-anchor="end">{escape(xlabel)}</text>')
-        bits.append(background)
-        for points,color,dash in series:
-            coords=' '.join(f'{sx(x):.2f},{sy(y):.2f}' for x,y in points)
-            bits.append(f'<polyline points="{coords}" fill="none" stroke="{color}" stroke-width="2.7" stroke-dasharray="{dash}" stroke-linejoin="round"/>')
-        for x,y,color in rings:
-            bits.append(f'<circle cx="{sx(x)}" cy="{sy(y)}" r="5" fill="white" stroke="{color}" stroke-width="2"/>')
-        for x,y,color in dots:
-            bits.append(f'<circle cx="{sx(x)}" cy="{sy(y)}" r="5" fill="{color}" stroke="white" stroke-width="1.4"/>')
-        if annotation:
-            x,y,label=annotation
-            bits.append(f'<text x="{sx(x)}" y="{sy(y)}" text-anchor="middle">{escape(label)}</text>')
-        return ''.join(bits)+'</svg>'
+    def fit_logistic(features, y, bias=True):
+        """交差エントロピーが最小になる重みを（図を作るために）ニュートン法で求める。戻り値は [w1, w2, ..., b]。"""
+        design = np.column_stack([*features, np.ones(len(y))] if bias else features)
+        theta = np.zeros(design.shape[1])
+        for _ in range(50):
+            p = sigmoid(design @ theta)
+            theta -= np.linalg.solve((design * (p * (1 - p))[:, None]).T @ design, design.T @ (p - y))
+        return theta
 
-    def figure(content, caption):
-        return f'<figure class="textbook-figure">{content}<figcaption>{caption}</figcaption></figure>'
+    return cross_entropy, descend, fit_logistic, sigmoid
 
-    def sigmoid_figure():
-        xs=np.linspace(-5,5,150)
-        graphic=chart([(list(zip(xs,sigmoid(xs))),BLUE,'')],xlim=(-5,5),ylim=(0,1),
-            xlabel='スコア s',ylabel='クラス1の確率 p',xticks=[-4,0,4],yticks=[0,.5,1],
-            dots=[(-1,float(sigmoid(-1)),ORANGE),(0,.5,BLUE),(1,float(sigmoid(1)),ORANGE)])
-        return figure(graphic,'図1　sigmoid関数。スコア−1・0・1は、それぞれ確率約0.27・0.50・0.73に対応する。')
 
-    def boundary_figure():
-        # A small fixed example; the boundary is x₁=x₂, not a training-result dashboard.
-        graphic=chart([([(-2,-2),(2,2)],'#526575','')],xlim=(-2.2,2.2),ylim=(-2.2,2.2),
-            xlabel='特徴量 x₁',ylabel='特徴量 x₂',xticks=[-2,0,2],yticks=[-2,0,2],width=500,height=300,
-            dots=[(-1,1,ORANGE),(-1.5,.5,ORANGE),(1,-1,BLUE),(1.5,-.5,BLUE)],
-            annotation=(-.9,1.75,'クラス0の側'))
-        return figure('<div class="small-figure">'+graphic+'</div>','図2　w₁=1、w₂=−1、b=0の決定境界。直線上はp=0.5、x₁がx₂より大きい側ではp&gt;0.5となる。青い点はクラス1、橙の点はクラス0の例。')
+@app.cell(hide_code=True)
+def _(np, sigmoid):
+    # 湿度と雨の例（説明用に作ったデータ）。ある町の6月の30日間の、朝の湿度（%）と、その日に雨が降ったか（1 = 降った）。
+    # 本当の雨の確率は σ(0.12 × (湿度 − 70)) とした。1節で「まだ分からない」とする湿度78%の近くと、
+    # 境目にあたる70%ちょうどの日は作らない。同じ行（降った・降らなかった）で2%未満の点は、右隣の空いている湿度へずらす。
+    HUMID_CENTER, QUERY = 70, 78
+    _allowed = [h for h in range(45, 96) if h != HUMID_CENTER and abs(h - QUERY) >= 3]
+    _rng = np.random.default_rng(3094)
+    HUMIDITY = np.sort(_rng.choice(_allowed, 30)).astype(float)
+    RAIN = (_rng.random(30) < sigmoid(0.12 * (HUMIDITY - HUMID_CENTER))).astype(float)
+    for _c in (0.0, 1.0):
+        _idx = np.where(RAIN == _c)[0]
+        _v = HUMIDITY[_idx]
+        for _i in range(1, len(_v)):
+            if _v[_i] < _v[_i - 1] + 2:
+                _v[_i] = min(h for h in _allowed if h >= _v[_i - 1] + 2)
+        HUMIDITY[_idx] = _v
+    # 3節以降の入力 x は「湿度 − 70」
+    X = HUMIDITY - HUMID_CENTER
+    DAY_POINTS = [[int(h), int(r)] for h, r in zip(HUMIDITY, RAIN)]
+    # 図2：湿度の区間（45〜54%、55〜64%、…、85〜95%）ごとの、雨が降った日の割合
+    RAIN_BINS = []
+    for _lo, _hi in [(45, 55), (55, 65), (65, 75), (75, 85), (85, 95)]:
+        _in = (HUMIDITY >= _lo) & ((HUMIDITY < _hi) if _hi < 95 else (HUMIDITY <= _hi))
+        RAIN_BINS.append({"lo": _lo, "hi": _hi, "days": int(_in.sum()), "rain": int(RAIN[_in].sum()),
+                          "rate": float(RAIN[_in].mean())})
+    return DAY_POINTS, HUMIDITY, HUMID_CENTER, QUERY, RAIN, RAIN_BINS, X
 
-    def loss_figure():
-        qs=np.linspace(.03,1,130)
-        graphic=chart([(list(zip(qs,-np.log(qs))),BLUE,'')],xlim=(0,1),ylim=(0,3.6),
-            xlabel='正解に与えた確率 q',ylabel='一点の損失 −log q',xticks=[0,.5,1],yticks=[0,1,2,3],
-            dots=[(q,float(-np.log(q)),ORANGE) for q in [.2,.5,.8]])
-        return figure(graphic,'図3　正解への確率が低いほど損失は大きい。自信を持って外した予測には、大きな損失が与えられる。')
 
-    def rate_figure():
-        items=[]
-        for eta,color,label in [(.1,BLUE,'小さい：η=0.1'),(1,ORANGE,'適度：η=1'),(3,PURPLE,'大きすぎる：η=3')]:
-            states=history(eta=eta)
-            points=[(i,s['loss']) for i,s in enumerate(states)]
-            graphic=chart([(points,color,'')],xlim=(0,9),ylim=(.5,1.7),xlabel='更新回数',ylabel='損失 L',
-                          xticks=[0,3,6,9],yticks=[.5,1,1.5],width=340,height=270,
-                          dots=[(*points[-1],color)])
-            items.append(f'<div><h4>{label}</h4>{graphic}</div>')
-        return figure('<div class="three-figures">'+''.join(items)+'</div>',
-                       '図5　同じ6点、同じ初期値から9回更新した結果。縦軸・横軸の範囲は共通。学習率だけを変えている。')
-
-    def method_figure():
-        items=[]
-        for size,color,name,comment,dash in [(6,BLUE,'バッチ','全体の勾配に沿って進む',''),(2,ORANGE,'ミニバッチ','向きを変えながら進む','6 3'),(1,PURPLE,'SGD','一点の影響で細かく揺れる','2 3')]:
-            states=history(eta=.3,epochs=6,batch_size=size,fixed_bias=False)
-            points=[s['theta'] for s in states]
-            graphic=chart([(points,color,dash)],xlim=(-1.2,1.2),ylim=(-.5,.5),xlabel='重み w',ylabel='バイアス b',
-                xticks=[-1,0,1],yticks=[-.5,0,.5],width=340,height=290,
-                rings=[(*points[0],color)],dots=[(*points[-1],color)])
-            items.append(f'<div><h4>{name}</h4>{graphic}<p>{comment}</p></div>')
-        return figure('<div class="three-figures">'+''.join(items)+'</div>',
-            '図6　パラメータ(w, b)が動いた軌跡。○が初期値、●が6巡後。同じデータ・初期値・学習率0.3、同じ座標軸で比較した。バッチは6回、ミニバッチは18回、SGDは36回更新している。')
-
-    def softmax_figure():
-        p,_=softmax_loss([2,1,0],0)
-        bits=['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 190" role="img" aria-label="スコア2、1、0に対応するクラス確率">']
-        for i,v in enumerate(p):
-            bits.append(f'<text x="20" y="{36+52*i}">クラス{i}</text><rect x="110" y="{15+52*i}" width="{v*450}" height="29" rx="3" fill="{BLUE}"/><text x="{120+v*450}" y="{36+52*i}">{v:.3f}</text>')
-        return figure(''.join(bits)+'</svg>','図7　スコア[2, 1, 0]をsoftmaxで確率に変換した結果。3クラスの確率の合計は1になる。')
-
-    def demo_data():
-        states=history()
-        for state in states:
-            state['gradient']=float(loss_gradient(X,Y,state['theta'])[1][0])
-        ws=np.linspace(-1.15,1.15,140)
-        return dict(states=states,curve=[[float(w),loss_gradient(X,Y,[w,0])[0]] for w in ws],eta=.3)
-
-    def learning_demo():
-        root=Path(__file__).resolve().parent
-        config=json.dumps(demo_data(),ensure_ascii=False,allow_nan=False).replace('</','<\\/')
-        return (root/'player.html').read_text().replace('/* DATA */','const DATA = '+config+';').replace('/* PLAYER */',(root/'player.js').read_text())
-
-    return (
-        boundary_figure,
-        learning_demo,
-        loss_figure,
-        method_figure,
-        rate_figure,
-        sigmoid_figure,
-        softmax_figure,
-    )
+@app.cell(hide_code=True)
+def _(HUMIDITY, RAIN, X, cross_entropy, fit_logistic):
+    # 1節の曲線（湿度そのものを入力に、w と b を両方学習）と、3節以降で使う b = 0 のときの最適な w
+    FIT_W, FIT_B = (float(v) for v in fit_logistic([HUMIDITY], RAIN))
+    (BEST_W,) = (float(v) for v in fit_logistic([X], RAIN, bias=False))
+    BEST_LOSS = cross_entropy(BEST_W, 0.0, X, RAIN)
+    return BEST_LOSS, BEST_W, FIT_B, FIT_W
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.Html('''<style>
-    .output > .markdown.prose{display:block}.markdown.prose{font-size:16px;line-height:1.95;max-width:860px;margin-inline:auto}
-    .markdown h1{font-size:29px;line-height:1.5}.markdown h2{font-size:24px;margin-top:1.6em}.markdown h3{font-size:19px}
-    .textbook-figure{max-width:860px;margin:18px auto 28px;color:#283b4a;background:#fff}
-    .textbook-figure svg{width:100%;height:auto;display:block}.textbook-figure svg text{font:14px system-ui,sans-serif;fill:#526575}
-    .textbook-figure figcaption{font-size:14px;line-height:1.8;color:#526575;margin:10px 0 0}
-    .three-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.three-figures h4{font:600 15px/1.6 system-ui;margin:0 0 7px}.three-figures p{font-size:14px;line-height:1.7;margin:6px 0}
-    .small-figure{max-width:500px;margin:auto}iframe{display:block;border:0;width:100%;max-width:860px;margin-inline:auto}
-    @media(max-width:800px){.three-figures{grid-template-columns:1fr}.three-figures>div{max-width:440px;width:100%;margin:0 auto}.markdown.prose{font-size:16px}}
-    @media(max-width:600px){.textbook-figure svg text{font-size:20px}.three-figures svg text{font-size:14px}}
-    </style>''')
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # 03 線形分類と勾配降下法
-
-    この章では、データを二つのクラスに分けるモデルを作り、その重みを学習する方法を説明します。
-    まず予測の計算を確かめ、次に「重みをどう変えれば、正解に近づくか」を考えます。
-    尤度、損失、勾配降下法を順に結びつけ、最後に多クラスの分類へ広げます。
-
-    読了の目安は約60分です。ベクトルの内積と、関数のグラフを知っていれば読み進められます。
-    微分は傾きから説明します。途中の図を一度ずつ確かめながら読んでください。
-
-    ## 1. 線形二値分類
-
-    **分類**とは、入力がどのクラスに属するかを予測することです。
-    たとえば、メールが迷惑メールかどうかを、文中の単語などの特徴から判断します。
-    二つのクラスを扱うとき、正解のラベルを $y=0$ または $y=1$ と表します。
-    この0と1はクラスを区別する記号です。
-
-    入力を特徴量のベクトル $\boldsymbol{x}$ として表し、重み $\boldsymbol{w}$ と
-    バイアス $b$ を使って、まず**スコア**を計算します。
-
-    \[
-    s=\boldsymbol{w}^{\top}\boldsymbol{x}+b
-    \]
-
-    特徴量が一つなら $s=wx+b$、二つなら $s=w_1x_1+w_2x_2+b$ です。
-    重みは各特徴がスコアに与える影響、バイアスはスコア全体のずれを決めます。
-    この段階のスコアは、負にも、1より大きくもなるため、そのまま確率とは呼べません。
-
-    そこで、**sigmoid（シグモイド）関数**を通して、0から1の間の値に変換します。
-
-    \[
-    p=P(y=1\mid\boldsymbol{x})=\sigma(s)=\frac{1}{1+e^{-s}}
-    \]
-
-    $e$ は約2.718の定数で、指数関数の底です。$p$ はモデルが予測したクラス1の確率です。クラス0の確率は $1-p$ になります。
-    スコアが大きいほどクラス1の確率が高くなり、スコア0では両クラスの確率が0.5になります。
-    このモデルを**ロジスティック回帰**と呼びます。名前に「回帰」が入っていますが、ここでは分類に使います。
+    mo.Html("""
+    <header class="hero">
+      <p class="eyebrow">機械学習入門</p>
+      <h1>線形分類と勾配降下法</h1>
+      <p>雨が降るかどうかを確率で予測するモデルを作り、その重みを「坂を下る」ことで学習します。</p>
+    </header>
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo, sigmoid_figure):
-    mo.Html(sigmoid_figure())
-    return
-
-
-@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    確率から一つのクラスを選ぶときは、ここでは $p\geq0.5$ ならクラス1、
-    $p<0.5$ ならクラス0と判定します。予測ラベルは $\hat y$ と書き、正解ラベル $y$ と区別します。
+    雨が降るかどうかのように、**どの種類（クラス）に当たるか**を予測する問題を**分類（classification）**と呼びます。
+    朝の湿度から雨の確率を出し、予測のずれを小さくするように重みを学習します。
 
-    **計算例。** 特徴量が $x=1$、重みが $w=-1$、バイアスが $b=0$ なら、
-    $s=-1$、$p=\sigma(-1)\approx0.269$ なので、予測はクラス0です。
-    正解が $y=1$ だったとすると、この予測は外れています。
-    $w$ を少し大きくすれば、この点のスコアも $p$ も大きくなり、正解に与える確率が上がります。
-
-    特徴量が二つの場合、判定が切り替わる場所は $w_1x_1+w_2x_2+b=0$ という直線になります。
-    これを**決定境界**と呼びます。sigmoidのグラフは曲線ですが、入力の空間での境界は直線です。
-    そのため、このモデルは線形分類器の一つに数えられます。
+    **この章の目標：** 分類の損失と、勾配・学習率が重みの更新にどう関わるかを説明することです。
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(boundary_figure, mo):
-    mo.Html(boundary_figure())
-    return
-
-
-@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    一点だけを見れば、正解の確率を上げる方向を考えられそうです。
-    しかし、同じ重みを多くの点に使うので、一点に都合のよい変更が別の点には不利になることもあります。
-    **データ全体にとってよい重み**を選ぶために、まず予測のよさを一つの数で測ります。
+    ## 1. 雨が降るかを確率で予測する
 
-    ## 2. 尤度と最尤推定
+    天気予報の「降水確率70%」は、雨が降るか降らないかを言い切らずに、**確率**で答えています。
+    同じような空模様でも、降る日と降らない日があるからです。
 
-    ある入力に対し、モデルがクラス1の確率を $p=0.8$ と予測したとします。
-    正解がクラス1なら、モデルは正解に0.8の確率を与えています。
-    正解がクラス0なら、正解に与えた確率は $1-0.8=0.2$ です。
-
-    データの $i$ 番目について、この「正解に与えた確率」を $q_i$ と書くと、
-    二つの場合を次の式でまとめられます。
-
-    \[
-    q_i=p_i^{y_i}(1-p_i)^{1-y_i}
-    \]
-
-    $y_i=1$ を代入すると $q_i=p_i$、$y_i=0$ なら $q_i=1-p_i$ です。
-    $p_i$ はいつもクラス1への確率、$q_i$ はその点の正解クラスへの確率、という違いがあります。
-
-    入力とモデルの重みを与えたとき、各ラベルが独立に生じると仮定すると、
-    観測された正解ラベル全体への確率は、それぞれの $q_i$ の積になります。
-    この積を、重みの関数として見たものが**尤度（ゆうど）**です。
-    $\theta=(\boldsymbol{w},b)$ とまとめて書けば、
-
-    \[
-    \mathcal{L}(\theta)=\prod_{i=1}^{N}q_i
-    \]
-
-    となります。$N$ はデータの点数、$\prod$ は全点について掛け合わせる記号です。
-    データを固定して重みを変えると、予測する確率が変わり、尤度も変わります。
-    尤度は「重みが正しい確率」ではなく、**その重みで観測済みの正解をどれだけ説明できるか**を表します。
-
-    **計算例。** 二つの点の正解に、あるモデルは確率0.8と0.6を、
-    別のモデルは0.9と0.7を与えたとします。
-
-    | モデル | 一点目の $q_1$ | 二点目の $q_2$ | 尤度 $q_1q_2$ |
-    |:--|--:|--:|--:|
-    | A | 0.8 | 0.6 | 0.48 |
-    | B | 0.9 | 0.7 | 0.63 |
-
-    どちらも判定は二点とも正解ですが、Bの方が正解ラベルに高い確率を与えています。
-    この基準で、尤度をできるだけ大きくする重みを探すことを**最尤推定**と呼びます。
-
-    ## 3. 交差エントロピー
-
-    尤度は多くの確率の積なので、データが増えると非常に小さな値になります。
-    計算と微分を扱いやすくするため、積の対数を取ります。
-    対数は単調に増える関数なので、尤度を最大にする重みは、対数尤度も最大にします。
-
-    \[
-    \log\mathcal{L}(\theta)=\sum_{i=1}^{N}\log q_i
-    \]
-
-    さらに符号を反転して「小さいほどよい」量にし、データ数 $N$ で割って平均を取ります。
-    得られる**損失**が、二値分類の交差エントロピーです。以下の $\log$ は自然対数です。
-
-    \[
-    \ell_i=-y_i\log p_i-(1-y_i)\log(1-p_i)=-\log q_i
-    \]
-
-    \[
-    L(\theta)=\frac{1}{N}\sum_{i=1}^{N}\ell_i
-    \]
-
-    $\ell_i$ は一点の損失、$L$ はデータ全体の平均損失です。
-    尤度を最大にすることと、この平均損失を最小にすることは同じ重みの選び方になります。
+    下の図は、ある町の6月の30日間について、朝の湿度と、その日に雨が降ったかを並べたものです（説明用に作ったデータです）。
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(loss_figure, mo):
-    mo.Html(loss_figure())
+def _(DAY_POINTS, QUERY, figure):
+    figure("rainDays", {"points": DAY_POINTS, "query": QUERY},
+           f"図1　30日間の朝の湿度（横軸）と、その日に雨が降ったか（上の段が降った日、下の段が降らなかった日）。", height=310)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    正解に与える確率 $q$ が0.2、0.5、0.8のとき、損失はそれぞれ約1.609、0.693、0.223です。
-    判定が同じでも、正解への確率が上がれば損失は下がります。
-    正解率だけでは区別できなかった予測の変化を、連続的な数値として測れるようになりました。
+def _(HUMIDITY, HUMID_CENTER, QUERY, RAIN, mo):
+    _dry_rain = int(((HUMIDITY < HUMID_CENTER) & (RAIN == 1)).sum())
+    _wet_dry = int(((HUMIDITY > HUMID_CENTER) & (RAIN == 0)).sum())
+    mo.md(rf"""
+    湿度が高い日ほど雨が多いのですが、境目ははっきりしません。
+    湿度が{HUMID_CENTER}%に届かなかったのに雨が降った日が{_dry_rain}日、{HUMID_CENTER}%を超えていたのに降らなかった日が{_wet_dry}日あります。
+    では、**湿度{QUERY}%の朝、雨が降る確率**はどれくらいでしょうか。
 
-    ここからは、次の6点を共通の例として使います。特徴量は一つです。
-
-    | 特徴量 $x$ | −3 | −2 | −1 | 1 | 2 | 3 |
-    |:--|--:|--:|--:|--:|--:|--:|
-    | 正解 $y$ | 0 | 1 | 0 | 1 | 0 | 1 |
-
-    正解ラベルは途中で入れ替わっているため、一つの境界ですべての点を正しく分類することはできません。
-    それでも、6点への予測をまとめた平均損失は計算できます。
-    この損失が小さくなるように、重みを調整していきます。
-
-    ## 4. 微分と勾配降下法
-
-    まず、バイアスを $b=0$ に固定して、重み $w$ 一つだけを変えます。
-    すると損失は $L(w)$ という一変数の関数になります。
-    図4の横軸は重み $w$、縦軸は6点の平均損失です。横軸は入力 $x$ ではありません。
-
-    関数の**微分** $L'(w)$ は、その場所でのグラフの傾きです。
-    重みを少しだけ $\Delta w$ 動かしたときの損失の変化は、
-
-    \[
-    L(w+\Delta w)-L(w)\approx L'(w)\Delta w
-    \]
-
-    と近似できます。傾きが負なら、右へ動くと損失が下がります。
-    傾きが正なら、左へ動くと下がります。
-    このように、**傾きと逆の向きに重みを動かす**のが勾配降下法の基本です。
-
-    \[
-    w_{t+1}=w_t-\eta L'(w_t)
-    \]
-
-    $t$ は更新回数、$\eta>0$ は一回に動かす量を調節する**学習率**です。
-    一回動かしたら、新しい位置で傾きを計算し直し、同じ操作を繰り返します。
-
-    このモデルの一点の損失を微分すると、次の簡単な形になります。
-
-    \[
-    \frac{\partial\ell_i}{\partial w}=(p_i-y_i)x_i
-    \]
-
-    これは、$\partial\ell_i/\partial s_i=p_i-y_i$ と
-    $\partial s_i/\partial w=x_i$ を掛け合わせたものです。
-    全体の平均損失の微分は、各点から得た値の平均になります。
-
-    \[
-    L'(w)=\frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)x_i
-    \]
-
-    **最初の更新。** 6点の例で $w=-1$ とすると、平均損失は約1.496、傾きは約−1.117です。
-    学習率を0.3にすると、
-
-    \[
-    w_{1}=-1-0.3\times(-1.117)\approx-0.665
-    \]
-
-    となり、更新後の平均損失は約1.146に下がります。
-    次の図で「進む」を押すと、この更新を一回ずつ行います。
-    **点が右へ進むにつれて、傾きと一回の移動量が小さくなること**を確かめてください。
-    """)
-    return
-
-
-@app.cell
-def _(learning_demo, mo):
-    mo.iframe(learning_demo(), height="430px")
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    図4では、初期状態から9回の更新で損失が約1.496から0.645に下がります。
-    損失が0にならないのは、すべての正解に確率1を与えられるデータとモデルではないためです。
-    学習は「すべてを正解にするまで動かすこと」とは限りません。
-
-    重みが複数ある場合も、考え方は同じです。
-    ほかの重みを固定して一つの重みに関する傾きを求める計算を**偏微分**と呼びます。
-    パラメータ $\theta=(w_1,\ldots,w_d,b)$ の偏微分を並べたベクトルが**勾配** $\nabla_\theta L$ です。
-
-    \[
-    \theta_{t+1}=\theta_t-\eta\nabla_\theta L(\theta_t)
-    \]
-
-    二値分類では、$w_j$ に対する偏微分は $(p_i-y_i)x_{ij}$ の平均、
-    $b$ に対する偏微分は $p_i-y_i$ の平均になります。
-    すべての成分を更新前の同じパラメータから計算し、まとめて更新します。
-    一つの傾きを使った図4は、このベクトルの更新を一方向だけに限定した例です。
-
-    ## 5. 学習率
-
-    勾配から分かるのは、現在の位置の近くで損失が増える向きと、その変化の大きさです。
-    遠くまで同じ傾きが続くとは限らないため、逆向きに動かせば必ず損失が下がるわけではありません。
-    どこまで動かすかは、学習率 $\eta$ によって変わります。
-
-    図5は、図4と同じデータ・初期値で、学習率だけを変えて9回更新した結果です。
-    ここでもバイアスは0に固定しています。
+    手掛かりとして、湿度を10%ごとの区間に分け、区間ごとに、雨が降った日の割合を数えてみます。
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo, rate_figure):
-    mo.Html(rate_figure())
+def _(RAIN_BINS, figure):
+    figure("rainRates", {"bins": RAIN_BINS},
+           "図2　湿度の区間ごとの、雨が降った日の割合。棒の上の数字は「雨が降った日数 / その区間の日数」。", height=340)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    $\eta=0.1$ では、一回の変化が小さく、損失がゆっくり下がっています。
-    $\eta=1$ では、この例では少ない更新で低い損失に近づきます。
-    $\eta=3$ では、最初に谷を大きく飛び越え、損失が約1.496から1.601へ増えます。
-    その後も損失が上下し、更新が安定しません。
+def _(RAIN_BINS, mo):
+    _few = min(b["days"] for b in RAIN_BINS)
+    mo.md(rf"""
+    湿度が高い区間ほど、雨が降った日の割合が高くなっています。この割合が、その湿度で雨が降る確率の目安になります。
+    ただし、区間の区切り方を変えると値が変わりますし、{_few}日しかない区間の割合はあまり当てになりません。
+    そこで、湿度から**滑らかに確率を出す式**を作ります。
 
-    どの値が適切かは、データの尺度や損失の形によって変わります。
-    特徴量の値を大きくすれば、同じ重みでもスコアや勾配が変わります。
-    したがって「学習率は1にする」という決まりはありません。
-    損失が下がる様子を見ながら調整し、学習が進むにつれて学習率を小さくする方法もあります。
+    雨が降った・降らなかったのように、答えが二つのクラスのどちらかになる問題を**二値分類**と呼びます。
+    雨が降った日を $y=1$、降らなかった日を $y=0$ と表し、モデルには $y$ そのものではなく、**雨が降る確率 $p$**（0から1の値）を出させます。
 
-    ## 6. バッチ・ミニバッチ・SGD
+    ### スコアを確率に変える
 
-    ここまでは、一回の更新のたびに、6点すべてから勾配を計算しました。
-    この方法を**バッチ勾配降下法**と呼びます。
-    データ数が多いと、たった一回の更新にも全データを処理する必要があります。
+    02と同じように、まず入力 $x$（湿度）から、直線の式で**スコア**を計算します。
 
-    全体の一部だけから勾配を計算して更新するのが**ミニバッチ勾配降下法**です。
-    さらに、一点ずつ選んで更新する方法を**確率的勾配降下法（SGD）**と呼びます。
-    この章では三つを区別するため、SGDを一点ずつ更新する意味で使います。
-    実装や文献では、ミニバッチを使う方法も広くSGDと呼ばれます。
+    $$s = wx + b$$
 
-    | 方法 | 一回の更新に使うデータ | 6点を一巡するときの更新回数 |
-    |:--|:--|--:|
-    | バッチ勾配降下法 | 全6点 | 1回 |
-    | ミニバッチ勾配降下法 | 2点ずつ | 3回 |
-    | 確率的勾配降下法（SGD） | 1点ずつ | 6回 |
+    スコアは、雨が降りそうな日ほど大きくなる数です。ただし直線なので、負にも1より大きくもなり、そのままでは確率になりません。
+    そこで、どんな数でも0から1の間に押し込む**sigmoid（シグモイド）関数** $\sigma$ に通します。
 
-    一回に選んだデータの集合を $B$ とすると、更新に使う勾配は次の平均です。
-
-    \[
-    g_B(\theta)=\frac{1}{|B|}\sum_{i\in B}\nabla_\theta\ell_i(\theta)
-    \]
-
-    \[
-    \theta_{t+1}=\theta_t-\eta g_B(\theta_t)
-    \]
-
-    更新式の形は共通で、勾配を計算するデータの数が異なります。
-    ミニバッチやSGDでは、データをランダムに並べ替え、順に使う方法がよく使われます。
-    全データを一巡することを**1エポック**と呼びます。
-
-    図6では、バイアスも動かし、横軸を $w$、縦軸を $b$ として、その軌跡を描いています。
-    図4・5の損失のグラフとは軸が異なります。
-    初期値はどれも $(w,b)=(-1,0)$、学習率は0.3です。各エポックの並べ替え順もそろえました。
+    $$p = \sigma(s) = \frac{{1}}{{1+e^{{-s}}}}$$
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(method_figure, mo):
-    mo.Html(method_figure())
+def _(figure):
+    figure("sigmoid", {"marks": [-2, 0, 2]},
+           "図3　sigmoid関数。横軸がスコア、縦軸が確率。スコアがどんな値でも、確率は0と1の間に入る。", height=330)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    バッチでは全体の勾配を使うので、この例ではまっすぐ進みます。
-    データが左右対称に配置されているため、バイアスの勾配が打ち消し合って0になるからです。
-    バッチの軌跡がいつでも直線になる、という意味ではありません。
+    スコアが0なら確率はちょうど0.5、スコアが大きいほど1に、小さいほど0に近づきます。
 
-    ミニバッチは、選ばれた2点によって勾配の向きが変わり、くねくねと進みます。
-    SGDは一点の影響を直接受けるので、この例ではさらに細かく揺れています。
-    選んだデータにとって損失を下げる更新でも、全データの損失が毎回下がるとは限りません。
-
-    この揺れは、勾配をデータの一部で近似することから生じます。
-    一回に使う点を増やすと、一般に全体の勾配に近い値が得られ、揺れは小さくなります。
-    ただし、実際の軌跡はデータと並び順にも依存します。
-
-    図は同じ6エポックで比べていますが、更新回数は6回・18回・36回と異なります。
-    軌跡の長さや終点だけから、実行時間の速さや最終的な性能を順位づけることはできません。
-    実際の学習では、一回の計算量、利用できるメモリ、勾配の揺れを考慮してミニバッチの大きさを選びます。
-
-    ## 7. 多クラス分類
-
-    クラスが三つ以上でも、スコアを確率に変え、正解への確率から損失を計算して、
-    勾配で重みを更新する流れは変わりません。
-    クラスが $K$ 個あるときは、クラスごとに重みとバイアスを持ち、$K$ 個のスコアを計算します。
-
-    \[
-    s_k=\boldsymbol{w}_k^{\top}\boldsymbol{x}+b_k
-    \]
-
-    先ほどまでの二値分類と同様に考えて各スコアをばらばらにsigmoidに通すと、確率の合計が1になるとは限りません。
-    一つの正解クラスを選ぶ分類では、**softmax（ソフトマックス）関数**を使います。
-
-    \[
-    p_k=\frac{e^{s_k}}{\sum_{j=0}^{K-1}e^{s_j}}
-    \]
-
-    それぞれの$k$に対応するスコアの指数$e^{s_k}$を
-    スコアの指数の合計$\sum_{j=0}^{K-1}e^{s_j}で割った$p_k$ は正となり、合計は1になります。
-    最も大きいスコアのクラスが、最も大きい確率のクラスになります。
+    $w$ と $b$ をデータから学習すると（学習の方法は3〜4節で説明します）、次の曲線が得られます。
+    縦軸を「雨の確率」と読めば、図1の点と同じ座標に曲線を描けます。図2の区間ごとの割合も、薄い棒で重ねました。
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo, softmax_figure):
-    mo.Html(softmax_figure())
+def _(DAY_POINTS, FIT_B, FIT_W, QUERY, RAIN_BINS, figure):
+    figure("rainModel", {"points": DAY_POINTS, "bins": RAIN_BINS, "w": FIT_W, "b": FIT_B, "query": QUERY},
+           f"図4　学習したモデル $p$ = σ({FIT_W:.3f}$x$ − {-FIT_B:.2f}) が出す雨の確率（$x$ は湿度）。縦の点線が、予報が切り替わる境目。", height=400)
+    return
+
+
+@app.cell(hide_code=True)
+def _(FIT_B, FIT_W, QUERY, mo, np):
+    _p = 1 / (1 + np.exp(-(FIT_W * QUERY + FIT_B)))
+    mo.md(rf"""
+    湿度{QUERY}%の朝に雨が降る確率は、約{_p * 100:.0f}%と予測できました。
+    曲線は、区間ごとの割合の段差をならすように通っています。区間に分けなくても、どの湿度にも確率を出せます。
+
+    確率から「雨」「降らない」を一つに決めるときは、$p \geq 0.5$ なら「雨」と予報します。
+    $p = 0.5$ になるのはスコアが0のとき、つまり $x = -b/w \approx {-FIT_B / FIT_W:.1f}$ % のところで、ここが予報の境目です。
+
+    この例では $w$ は正で、絶対値が大きいほど曲線の変化が急になります。$w$ が負なら、湿度が高いほど確率が下がります。
+    境目 $-b/w$ の位置は、$w$ と $b$ の比で決まります。
+
+    このように、スコアをsigmoidで確率に変えるモデルを**ロジスティック回帰（logistic regression）**と呼びます。
+    名前に「回帰」と付きますが、分類に使うモデルです。
+
+    では、入力が二つになると、予報の境目はどうなるでしょうか。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(fit_logistic, np, sigmoid):
+    # 湿度と気圧の変化の例（説明用に作ったデータ、40日分）。本当の雨の確率は σ(0.12 × (湿度 − 70) − 0.3 × 気圧の変化)。
+    # 近すぎる点は作り直す。
+    _rng = np.random.default_rng(133)
+    _pts = []
+    while len(_pts) < 40:
+        _p = np.array([float(_rng.integers(45, 96)), round(float(_rng.uniform(-8, 8)), 1)])
+        if any(np.hypot((_p[0] - q[0]) / 50, (_p[1] - q[1]) / 16) < 0.06 for q in _pts):
+            continue
+        _pts.append(_p)
+    _pts = np.array(_pts)
+    _y = (_rng.random(40) < sigmoid(0.12 * (_pts[:, 0] - 70) - 0.3 * _pts[:, 1])).astype(float)
+    TWO_THETA = [float(v) for v in fit_logistic([_pts[:, 0], _pts[:, 1]], _y)]
+    TWO_POINTS = [[int(a), float(b), int(c)] for (a, b), c in zip(_pts, _y)]
+    return TWO_POINTS, TWO_THETA
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2. 特徴量が二つのとき：決定境界
+
+    雨の予報には、湿度のほかに**気圧の変化**も手掛かりになります。気圧が下がる（低気圧が近づく）と雨になりやすいことは、天気予報でもよく耳にします。
+    朝の湿度を $x_1$、前日からの気圧の変化（hPa）を $x_2$ とし、スコアを次の式で計算します（別の40日のデータを用意しました）。
+
+    $$s = w_1 x_1 + w_2 x_2 + b$$
+
+    予測に使う入力の一つひとつを**特徴量**と呼ぶのは、02と同じです。
+    学習したモデルで「雨」と予報される範囲に、色を付けたのが次の図です。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(TWO_POINTS, TWO_THETA, figure):
+    figure("boundary2d", {"points": TWO_POINTS, "theta": TWO_THETA},
+           f"図5　40日間の朝の湿度と気圧の変化（前日比）、その日に雨が降ったか。黒い直線が、学習したモデル（$w$₁ = {TWO_THETA[0]:.2f}、$w$₂ = {TWO_THETA[1]:.2f}、$b$ = {TWO_THETA[2]:.2f}）の決定境界。".replace("-", "−"),
+           height=560)
+    return
+
+
+@app.cell(hide_code=True)
+def _(TWO_THETA, mo):
+    _w1, _w2, _ = TWO_THETA
+    mo.md(rf"""
+    予報が切り替わるのは $p = 0.5$、つまりスコアが $w_1 x_1 + w_2 x_2 + b = 0$ となる場所で、これは**直線**になります。
+    この線を**決定境界（decision boundary）**と呼びます。
+
+    学習した重みは $w_1 = {_w1:.2f}$、$w_2 = {_w2:.2f}$ でした。湿度が1%上がるとスコアが {_w1:.2f} 増え、気圧が1hPa**下がる**とスコアが {-_w2:.2f} 増えます。
+    そのため境界は右上がりになり、湿度が高い日でも気圧が上がっていれば「降らない」側に、湿度が低めでも気圧が大きく下がっていれば「雨」の側に入ります。
+
+    確率の曲線（sigmoid）は曲がっていますが、予報の境界は直線（特徴量が三つ以上なら平面）です。
+    このようなモデルを**線形分類器**と呼びます。直線では分けられないデータをどう扱うかは、04のニューラルネットワークで学びます。
+
+    ここからは、湿度だけを使う例に戻ります。図4の $w$ と $b$ は、どうやって選んだのでしょうか。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(FIT_B, FIT_W, HUMID_CENTER, mo):
+    mo.md(rf"""
+    ## 3. 予測のよさを測る：交差エントロピー
+
+    02と同じく、予測のよさを一つの数（損失）で表し、それが最も小さいモデルを選びます。
+    では、分類ではどんな数を使えばよいでしょうか。
+
+    話を簡単にするため、ここからはパラメータを $w$ 一つにします。
+    湿度そのものではなく、**湿度から{HUMID_CENTER}を引いた値**を入力 $x$ にします（湿度78%なら $x = 8$）。
+    すると湿度{HUMID_CENTER}%の日のスコアはちょうど $b$ になります。図4で学習した境目もほぼ{HUMID_CENTER}%（{-FIT_B / FIT_W:.1f}%）だったので、
+    湿度{HUMID_CENTER}%の日を五分五分とみなして $b = 0$ に固定します。
+
+    次の三つのモデルは、$w$ だけが違います。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(BEST_W, DAY_POINTS, HUMID_CENTER, RAIN, X, cross_entropy, figure, np):
+    _acc = float(np.mean((X > 0) == (RAIN == 1)))
+    THREE_W = [0.01, round(BEST_W, 2), 0.8]
+    THREE_LOSS = [cross_entropy(w, 0.0, X, RAIN) for w in THREE_W]
+    ACCURACY = _acc
+    figure("threeModels", {"points": DAY_POINTS, "center": HUMID_CENTER, "models": [
+        {"title": f"緩い（$w$ = {THREE_W[0]}）", "w": THREE_W[0], "stats": f"正解率 {_acc:.0%}"},
+        {"title": f"中くらい（$w$ = {THREE_W[1]}）", "w": THREE_W[1], "stats": f"正解率 {_acc:.0%}"},
+        {"title": f"急（$w$ = {THREE_W[2]:g}）", "w": THREE_W[2], "stats": f"正解率 {_acc:.0%}"},
+    ]}, f"図6　$b$ = 0 のまま $w$ だけを変えた三つのモデル（$x$ = 湿度 − {HUMID_CENTER}）。縦の線は、正解（0か1）と予測した確率とのずれ。", height=380)
+    return ACCURACY, THREE_LOSS, THREE_W
+
+
+@app.cell(hide_code=True)
+def _(ACCURACY, HUMIDITY, HUMID_CENTER, RAIN, THREE_W, mo):
+    _worst = int(HUMIDITY[RAIN == 0].max())
+    mo.md(rf"""
+    三つとも、湿度が{HUMID_CENTER}%を超えた日を「雨」と予報するので、予報はまったく同じです。
+    **正解率**（予報が当たった日の割合）はどれも{ACCURACY:.0%}ですが、よいモデルは真ん中に見えます。
+
+    - **左**（$w={THREE_W[0]}$）は、雨の日にも降らなかった日にも、0.5に近い確率しか出していません。自信がなさすぎます。
+    - **右**（$w={THREE_W[2]:g}$）は、湿度{_worst}%で降らなかった日にも「ほぼ確実に雨」と予測しています。自信を持って外しています。
+
+    正解率ではこの違いを区別できません。そこで、**正解に与えた確率**を使います。
+    $i$ 番目の日について、モデルが正解のクラスに与えた確率を $q_i$ とします。
+    雨が降った日（$y_i=1$）なら $q_i = p_i$、降らなかった日（$y_i=0$）なら $q_i = 1-p_i$ です。
+    図6の縦の線の長さは $1 - q_i$ にあたり、短いほど正解に高い確率を与えています。
+
+    1日分の損失を $-\log q_i$ とします（$\log$ は自然対数）。グラフにすると次のようになります。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(figure):
+    figure("logLoss", {"marks": [0.1, 0.5, 0.9]},
+           "図7　正解に与えた確率 $q$ と、1日分の損失 −log $q$。正解に確率1を与えれば損失は0。", height=330)
+    return
+
+
+@app.cell(hide_code=True)
+def _(THREE_LOSS, mo):
+    mo.md(rf"""
+    正解に確率1を与えれば損失は0で、確率が0に近づくほど損失は急に大きくなります。
+    「雨の確率90%」と予測して降らなかった日（$q = 0.1$）の損失は2.30で、「50%」と予測して降らなかった日（$q=0.5$）の0.69の3倍以上です。
+    **自信を持って外すほど、大きな損失になります。**
+
+    これを全日で平均したものが、分類で最もよく使われる損失、**交差エントロピー（cross-entropy）**です。$N$ は日数です。
+
+    $$L = \frac{{1}}{{N}}\sum_{{i=1}}^{{N}} \left(-\log q_i\right)$$
+
+    $q_i$ を $p_i$ と $y_i$ で書くと、1日分の損失は次のようにも書けます。$y_i$ が1なら前の項だけ、0なら後ろの項だけが残ります。
+
+    $$-\log q_i = -y_i \log p_i - (1-y_i)\log(1-p_i)$$
+
+    図6の三つのモデルの交差エントロピーは、左から {THREE_LOSS[0]:.3f}、{THREE_LOSS[1]:.3f}、{THREE_LOSS[2]:.3f} で、真ん中が最も小さくなります。
+    正解率では区別できなかった違いを、交差エントロピーなら数値で比べられます。
+
+    正解率には、もう一つ困ることがあります。$b=0$ のままなら、$w$ が正である限り、どう変えても予報は変わらず、正解率も変わりません。
+    これでは、$w$ をどちらへ動かせばよいかの手掛かりになりません。
+    交差エントロピーは $w$ を少し動かすと少し変わるので、次の節で使う「傾き」を計算できます。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.accordion({"なぜ −log を使うのか：尤度と最尤推定（任意）": mo.md(r"""
+    モデルが正しいとすると、30日の天気がちょうど観測したとおりになる確率は、各日の $q_i$ の積 $q_1 q_2 \cdots q_N$ です
+    （一日ごとの天気が独立に決まると考えます）。
+    これをパラメータの関数として見たものを**尤度（ゆうど、likelihood）**と呼び、尤度が最も大きくなるパラメータを選ぶ方法を**最尤推定**と呼びます。
+    「観測したデータを最もよく説明するパラメータを選ぶ」という考え方です。
+
+    たくさんの確率の積はとても小さな数になって扱いにくいので、対数を取って和にします（対数は増加関数なので、最大になる場所は変わりません）。
+    さらに符号を反転し、日数 $N$ で割ると、交差エントロピー $L$ になります。
+
+    $$-\frac{1}{N}\log\left(q_1 q_2 \cdots q_N\right) = \frac{1}{N}\sum_{i=1}^{N}\left(-\log q_i\right) = L$$
+
+    つまり、**交差エントロピーを最小にすることは、最尤推定と同じパラメータの選び方**です。
+    """)})
+    return
+
+
+@app.cell(hide_code=True)
+def _(DESCENT_ETA, mo):
+    mo.md(rf"""
+    ## 4. 勾配降下法：傾きを頼りに坂を下る
+
+    交差エントロピーが最も小さくなる $w$ を探します。
+    02の最小二乗法では、損失の谷底の位置を式で一度に求めました。交差エントロピーには、そのような式がありません。
+    代わりに、**今いる場所の坂の傾きを調べ、下る向きに少しずつ動く**ことを繰り返します。
+
+    $w$ を少しだけ増やしたとき、損失がどれだけの割合で変わるかが、損失の**傾き（微分）** $L'(w)$ です。
+
+    - 傾きが**負**なら、$w$ を大きくすると損失が下がる。
+    - 傾きが**正**なら、$w$ を小さくすると損失が下がる。
+
+    どちらの場合も、**傾きと逆の向き**に動かせばよいことになります。これを式にしたのが**勾配降下法（gradient descent）**の更新です。
+
+    $$w \leftarrow w - \eta\, L'(w)$$
+
+    $\eta$（イータ）は1回に動かす量を決める正の数で、**学習率（learning rate）**と呼びます。
+    傾きが急なほど大きく、緩やかなほど小さく動きます。
+    この例では、傾きは次の式で計算できます（導き方は下の折りたたみにあります）。
+
+    $$L'(w) = \frac{{1}}{{N}}\sum_{{i=1}}^{{N}} (p_i - y_i)\,x_i$$
+
+    $p_i - y_i$ は、予測した確率と正解のずれです。
+    たとえば、湿度85%（$x = 15$）で雨が降った日に低い確率しか出していないと、$(p_i - 1) \times 15$ は負になり、傾きを負の側へ引っ張ります。
+    つまり「$w$ を大きくして、この日の雨の確率を上げよ」という向きです。全日分のこうした要求を平均したものが傾きです。
+
+    1回の更新は、次の3段でできています。
+
+    1. **予測して損失を計算**：今の $w$ で各日の雨の確率 $p$ を計算し、正解と比べて損失 $L$ を求める。
+    2. **傾きを求める**：今の $w$ での損失の傾き $L'(w)$ を計算する。
+    3. **$w$ を更新する**：$w \leftarrow w - \eta L'(w)$ で $w$ を動かす。
+
+    そして、新しい $w$ でまた1.から繰り返します。下の図で、$w = 0$ から学習率 $\eta = {DESCENT_ETA}$ で、この3段を1段ずつ進めてみましょう。
+    「重み w と損失 L」の図は、横軸が重み $w$、縦軸が損失です。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(BEST_LOSS, BEST_W, DAY_POINTS, HUMID_CENTER, RAIN, X, cross_entropy, descend, figure, np):
+    DESCENT_ETA = 0.01
+    DESCENT = descend(X, RAIN, DESCENT_ETA, 12)
+    _ws = np.linspace(-0.01, 0.16, 171)
+    figure("descent", {
+        "points": DAY_POINTS, "center": HUMID_CENTER, "states": DESCENT, "eta": DESCENT_ETA,
+        "curve": [[float(w), cross_entropy(w, 0.0, X, RAIN)] for w in _ws],
+        "best": [BEST_W, BEST_LOSS], "wlim": [-0.01, 0.16], "llim": [0.44, 0.74],
+        "wticks": [0, 0.05, 0.1, 0.15], "wdigits": 2, "lticks": [0.5, 0.6, 0.7],
+    }, f"図8　勾配降下法の1回の更新を3段に分けて進める（学習率 $η$ = {DESCENT_ETA}、$b$ = 0 に固定）。灰色の曲線は説明のために描いた損失の全体で、勾配降下法そのものは、今いる場所の損失と傾きしか使わない。", height=620)
+    return DESCENT, DESCENT_ETA
+
+
+@app.cell(hide_code=True)
+def _(BEST_LOSS, DESCENT, DESCENT_ETA, mo):
+    _s0, _s1 = DESCENT[0], DESCENT[1]
+    _n = next(t for t, s in enumerate(DESCENT) if s["loss"] - BEST_LOSS < 0.005)
+    mo.md(rf"""
+    最初の1回では、$w=0$ での傾き $L'(0) \approx {_s0["grad"]:.2f}$ から、$w$ は $0 - {DESCENT_ETA} \times ({_s0["grad"]:.2f}) \approx {_s1["w"]:.3f}$ へ動き、
+    損失は {_s0["loss"]:.3f} から {_s1["loss"]:.3f} に下がりました。
+    次の①で予測し直すと、「データと予測」の図の横ばいだった確率の線が、右上がりの曲線に変わります。
+
+    谷底に近づくほど傾きが緩やかになるので、同じ学習率でも1回に動く幅は小さくなります。
+    {_n}回の更新で、損失は谷底の値 {BEST_LOSS:.3f} との差が0.005未満になりました。
+
+    損失は0にはなりません。湿度が高くても降らなかった日、低くても降った日があるので、どんな $w$ でも、全日の正解に確率1を与えることはできないからです。
+    図の灰色の曲線は、ふつうは見えません（パラメータが多いと描けません）。それでも、今いる場所の傾きさえ計算できれば谷底へ近づけるのが、勾配降下法のよいところです。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.accordion({"傾きの式の導き方（任意）": mo.md(r"""
+    1日分の損失 $\ell = -y\log p - (1-y)\log(1-p)$ は、$p = \sigma(s)$、$s = wx$ を通して $w$ につながっています。
+    このように関数をつないだものの微分は、それぞれの微分を掛け合わせて求めます（連鎖律）。
+
+    $$\frac{d\ell}{dw} = \frac{d\ell}{ds}\cdot\frac{ds}{dw}$$
+
+    sigmoidの微分が $\sigma'(s) = \sigma(s)\bigl(1-\sigma(s)\bigr) = p(1-p)$ となることを使うと、
+
+    $$\frac{d\ell}{ds} = \left(-\frac{y}{p} + \frac{1-y}{1-p}\right) p(1-p) = p - y, \qquad \frac{ds}{dw} = x$$
+
+    となり、$\dfrac{d\ell}{dw} = (p - y)\,x$ です。平均の損失 $L$ の傾きは、これを全日で平均したものになります。
+    04の逆伝播は、この連鎖律を何段にも重ねて使う方法です。
+    """)})
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    図7の例では、スコア $[2,1,0]$ から、確率約 $[0.665,0.245,0.090]$ が得られます。
-    予測するラベルはクラス0です。
-    正解がクラス0なら一点の損失は $-\log0.665\approx0.408$、
-    正解がクラス2なら $-\log0.090\approx2.408$ になります。
+    ## 5. 学習率の選び方
 
-    つまり、多クラスでも損失は**正解クラスに与えた確率の負の対数**です。
+    学習率 $\eta$ は、学習の前に人が決める値（02で学んだハイパーパラメータ）です。
+    大きいほど早く谷底に着きそうですが、本当にそうでしょうか。
 
-    \[
-    \ell_i=-\log p_{i,y_i}
-    \]
+    下の図は、同じ $w=0$ から12回更新したときの動きを、学習率ごとに比べたものです。
+    「損失の曲線の上での w の動き」には更新ごとの $w$ の位置（数字は更新回数）を、「更新回数と損失」には損失の変化を描いています。学習率を切り替えて比べてください。
+    """)
+    return
 
-    データ全体でこの損失を平均し、勾配を求め、重みとバイアスを更新します。
-    基本的にやることは二値分類と変わらず、
-    バッチ・ミニバッチ・SGDの区別も、学習率の役割も、そのまま当てはまります。
 
-    ## 8. まとめ
+@app.cell(hide_code=True)
+def _(BEST_LOSS, BEST_W, RAIN, X, cross_entropy, descend, figure, np):
+    RATES = [0.002, 0.01, 0.15]
+    RATE_RUNS = [{"eta": eta, "states": descend(X, RAIN, eta, 12)} for eta in RATES]
+    _ws = np.linspace(-0.03, 0.7, 147)
+    figure("rates", {
+        "runs": RATE_RUNS, "initial": 0,
+        "curve": [[float(w), cross_entropy(w, 0.0, X, RAIN)] for w in _ws],
+        "best": [BEST_W, BEST_LOSS], "wlim": [-0.03, 0.7], "llim": [0.4, 1.1],
+        "wticks": [0, 0.2, 0.4, 0.6], "lticks": [0.4, 0.6, 0.8, 1.0],
+    }, "図9　学習率だけを変えて、同じ $w$ = 0 から12回更新した。「更新回数と損失」の灰色の線は、選んでいないほかの学習率。", height=520)
+    return (RATE_RUNS,)
 
-    線形分類器の学習は、次の計算を繰り返すことです。
 
-    1. 入力と現在の重みからスコアを計算し、確率に変換する。
-    2. 正解に与えた確率から、交差エントロピーを計算する。
-    3. 損失の勾配を求め、学習率を掛けて、逆向きに重みを更新する。
+@app.cell(hide_code=True)
+def _(BEST_LOSS, DESCENT_ETA, RATE_RUNS, mo):
+    _slow, _good, _fast = RATE_RUNS
+    _fast_losses = [s["loss"] for s in _fast["states"]]
+    mo.md(rf"""
+    - **$\eta = {_slow["eta"]}$（小さすぎる）**：向きは正しいのですが、1回に動く幅が小さく、12回更新しても損失は {_slow["states"][-1]["loss"]:.3f} で、谷底（{BEST_LOSS:.3f}）に届きません。
+    - **$\eta = {_good["eta"]}$**：数回で谷底の近くに着きます。
+    - **$\eta = {_fast["eta"]}$（大きすぎる）**：最初の1回で谷を飛び越え、損失は {_fast_losses[0]:.3f} から {_fast_losses[1]:.3f} に**増えます**。
+      その後も谷の両側を行ったり来たりして、損失は {min(_fast_losses[-4:]):.3f} と {max(_fast_losses[-4:]):.3f} の間を往復し、いつまでも落ち着きません。
 
-    尤度は正解ラベル全体の説明のよさを表し、最尤推定が重みを選ぶ基準になります。
-    その計算を負の対数で書き換えたものが交差エントロピーです。
-    勾配降下法は、この損失を小さくするための更新方法です。
+    傾きから分かるのは、今いる場所のすぐ近くの坂の向きだけです。遠くまで同じ坂が続くとは限らないので、一度に大きく動きすぎると、かえって損失が増えることがあります。
+    よい学習率はデータやモデルによって変わるので、損失の変化を見ながら選びます。
 
-    ここで小さくしてきたのは、重みの更新に使った**訓練データ**の損失です。
-    未知の入力にもよい予測ができるかは、更新に使わなかった**検証データ**で確かめる必要があります。
-    訓練での損失の減少と、未知のデータでの正解率の向上は、同じことではありません。
-    次の章では、手書き数字を題材に、多クラス分類器の学習と評価を扱います。
+    ### コードで確かめる
 
-    ### 参考文献
+    勾配降下法をNumPyで書くと、次のようになります。`humidity` と `rain` には、図の30日分のデータが入っています。
+    ループの中の行が、確率 → 損失 → 傾き → 更新 に一つずつ対応しています。
 
-    岡崎直観ほか『機械学習帳』：
+    1. `learning_rate` を変えて、「更新5回」の行の損失を **{BEST_LOSS + 0.001:.3f}未満**（谷底の {BEST_LOSS:.3f} とほぼ同じ）にしてください。図8・図9の {DESCENT_ETA} では、5回では届きません。大きすぎても届きません。
+    2. 最後の行の `-` を `+` に変えて（傾きと同じ向きに動かして）実行すると、損失はどう変わりますか。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    _code = "\n".join([
+        "# humidity: 30日の朝の湿度（%）、rain: 雨が降ったか（1 = 降った、0 = 降らなかった）",
+        "x = humidity - 70      # 湿度70%との差",
+        "y = rain",
+        "w = 0.0                # 重みの初期値",
+        "learning_rate = 0.002  # 学習率",
+        "",
+        "for step in range(6):",
+        "    p = 1 / (1 + np.exp(-w * x))                              # 雨の確率",
+        "    loss = np.mean(-y * np.log(p) - (1 - y) * np.log(1 - p))  # 交差エントロピー",
+        "    print(f'更新{step}回: w = {w:.3f}  損失 = {loss:.3f}')",
+        "    grad = np.mean((p - y) * x)                               # 損失の傾き",
+        "    w = w - learning_rate * grad                              # 勾配降下法の更新",
+    ])
+    ex_gd = mo.ui.code_editor(value=_code, language="python", min_height=250).form(
+        submit_button_label="▶", submit_button_tooltip="実行", bordered=False)
+    return (ex_gd,)
+
+
+@app.cell(hide_code=True)
+def _(HUMIDITY, RAIN, ex_gd, mo, np):
+    def _run(code):
+        import contextlib
+        import io
+        buffer = io.StringIO()
+        scope = {"np": np, "humidity": HUMIDITY.copy(), "rain": RAIN.copy()}
+        try:
+            with contextlib.redirect_stdout(buffer), np.errstate(all="ignore"):
+                exec(code, scope)
+        except Exception as exc:
+            return mo.callout(mo.md(f"**エラー：** `{type(exc).__name__}: {exc}`　直前に変えた行を見直してください。"), kind="danger")
+        output = buffer.getvalue() or "（出力はありません）"
+        if "loss" in scope and not np.all(np.isfinite(scope["loss"])):
+            output += "\n損失が nan や inf になりました。更新幅が大きく、確率が計算上0や1になった可能性があります。学習率を小さくして比べてください。"
+        return mo.plain_text(output)
+
+    # 01のmarimoのセルに似せた欄。▶で実行し、実行するまで出力欄は出さない
+    _output = "" if ex_gd.value is None else f'<div class="pycell-output">{_run(ex_gd.value).text}</div>'
+    mo.Html(f'<div class="pycell">{ex_gd}{_output}</div>')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 6. パラメータが多いとき：勾配とミニバッチ
+
+    ここまでは $b=0$ に固定し、$w$ だけを学習しました。
+    実際には $w$ と $b$ の両方（特徴量が多ければ $w_1, w_2, \dots$ のすべて）を同時に学習します。
+
+    ほかのパラメータを固定し、一つのパラメータだけを動かしたときの傾きを**偏微分**と呼びます。
+    すべてのパラメータの偏微分を並べたベクトルが**勾配（gradient）** $\nabla L$ です。ロジスティック回帰では、それぞれ次の式になります。
+
+    $$\frac{\partial L}{\partial w_j} = \frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)\,x_{ij}$$
+
+    $$\frac{\partial L}{\partial b} = \frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)$$
+
+    $x_{ij}$ は $i$ 番目の日の $j$ 番目の特徴量（湿度や気圧の変化）です。パラメータをまとめて $\boldsymbol\theta$ と書くと、更新は4節と同じ形になります。
+
+    $$\boldsymbol\theta \leftarrow \boldsymbol\theta - \eta\,\nabla L(\boldsymbol\theta)$$
+
+    02の損失の地形で言えば、今いる場所で最も急に下る向きへ一歩進むことにあたります。
+    04のニューラルネットワークではパラメータが何千個にもなりますが、勾配を求めて同じ式で更新します。
+
+    ### 一部のデータで勾配を計算する：ミニバッチ
+
+    ここまでは、1回の更新のたびに30日すべての損失から勾配を計算しました。これを**バッチ勾配降下法**と呼びます。
+    データが何万件もあると、1回の更新のたびに全件を計算することになり、時間がかかります。
+    そこで、データをランダムに並べ替えて少しずつ取り出し、**その一部だけで勾配を計算して更新する**方法がよく使われます。
+
+    | 方法 | 1回の更新に使うデータ | 30日分を一巡する間の更新回数 |
+    |---|---|---|
+    | バッチ勾配降下法 | 全部（30日分） | 1回 |
+    | **ミニバッチ勾配降下法** | 一部（例えば5日分） | 6回 |
+    | **確率的勾配降下法（SGD）** | 1日分 | 30回 |
+
+    データ全体を一巡することを**1エポック（epoch）**と呼びます。
+    一部のデータで計算した勾配は、全データで計算した勾配と少しずれます。そのため、全データの損失は更新のたびに上下に揺れながら下がっていきます。
+    その代わり、同じ計算量で何回も更新できます。
+
+    05のPyTorchでは、128枚ずつのミニバッチで学習します。
+    なお、実際のプログラムや文献では、ミニバッチを使う方法もまとめてSGDと呼ぶことがよくあります。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(BEST_LOSS, RAIN, X, cross_entropy, figure, mo, np):
+    _eta, _epochs = 0.005, 5
+    _orders = [np.random.default_rng(3 + e).permutation(len(RAIN)) for e in range(_epochs)]
+
+    def _history(size):
+        """size 日分ずつ勾配を計算して更新し、更新のたびに全データの損失を測る。横軸はエポック。"""
+        w, done, pts = 0.0, 0, [[0.0, cross_entropy(0.0, 0.0, X, RAIN)]]
+        for order in _orders:
+            for ids in np.array_split(order, len(RAIN) // size):
+                p = 1 / (1 + np.exp(-w * X[ids]))
+                w -= _eta * float(np.mean((p - RAIN[ids]) * X[ids]))
+                done += len(ids)
+                pts.append([done / len(RAIN), cross_entropy(w, 0.0, X, RAIN)])
+        return pts
+
+    _panels = []
+    for _size, _title in [(30, "バッチ（30日分）"), (5, "ミニバッチ（5日分ずつ）"), (1, "SGD（1日分ずつ）")]:
+        _pts = _history(_size)
+        _panels.append({"title": _title, "stats": f"更新 {len(_pts) - 1}回", "pts": _pts})
+    mo.accordion({"3つの方法で、損失の下がり方を比べる（任意）": mo.vstack([
+        mo.md(rf"""
+        同じ $w=0$、同じ学習率 $\eta = {_eta}$ で、5エポック学習しました。横軸はエポック、縦軸は**全データの**平均損失で、更新するたびに測っています。
+        """),
+        figure("batches", {"panels": _panels, "epochs": _epochs, "best": BEST_LOSS, "llim": [0.44, 0.74], "lticks": [0.5, 0.6, 0.7]},
+               "図10　バッチ・ミニバッチ・SGDの損失の変化。同じデータ・初期値・学習率で、使うデータの数だけを変えた。", height=380),
+        mo.md(rf"""
+        バッチは1エポックに1回しか更新しないので、5エポック後も損失は {_panels[0]["pts"][-1][1]:.3f} で、まだ下りきっていません。
+        ミニバッチとSGDは、同じ5エポックでも更新回数が多いので、早く谷底（{BEST_LOSS:.3f}）の近くに着きます。
+        そのかわり、一部のデータだけで勾配を計算するので、損失は上下に揺れます。1日分ずつのSGDでは、選んだ1日に引っ張られて、損失が一時的に大きく上がることもあります。
+
+        どの方法がよいかは、データの量、1回の計算の重さ、揺れの大きさの兼ね合いで決まります。
+        実際には、数十〜数百件ずつのミニバッチがよく使われます。
+        """),
+    ])})
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, np):
+    SOFTMAX_CLASSES = ["晴れ", "くもり", "雨"]
+    SOFTMAX_SCORES = [2.0, 1.0, -1.0]
+    _exps = np.exp(SOFTMAX_SCORES)
+    SOFTMAX_PROBS = (_exps / _exps.sum()).tolist()
+    SOFTMAX_EXPS = _exps.tolist()
+    mo.md(r"""
+    ## 7. 3つ以上のクラス：softmax
+
+    ここまでは「雨が降るか、降らないか」の二つでした。天気予報のように「晴れ・くもり・雨」の三つに分けるにはどうすればよいでしょうか。
+    クラスが $K$ 個あるときは、クラスごとに重みとバイアスを用意して、$K$ 個のスコアを計算します。
+
+    $$s_k = \boldsymbol w_k^\top \boldsymbol x + b_k \qquad (k = 1, \dots, K)$$
+
+    各スコアをばらばらにsigmoidに通すと、三つの確率の合計が1になるとは限りません。
+    そこで**softmax（ソフトマックス）関数**を使い、合計が1になる確率に変えます。
+
+    $$p_k = \frac{e^{s_k}}{\sum_{j=1}^{K} e^{s_j}}$$
+
+    次の図は、スコアが $[2, 1, -1]$ のときの計算です。
+    """)
+    return SOFTMAX_CLASSES, SOFTMAX_EXPS, SOFTMAX_PROBS, SOFTMAX_SCORES
+
+
+@app.cell(hide_code=True)
+def _(SOFTMAX_CLASSES, SOFTMAX_EXPS, SOFTMAX_PROBS, SOFTMAX_SCORES, figure):
+    figure("softmax", {"classes": SOFTMAX_CLASSES, "scores": SOFTMAX_SCORES, "exps": SOFTMAX_EXPS, "probs": SOFTMAX_PROBS},
+           "図11　softmaxの計算。① スコア $s$ を ② 指数関数で $eˢ$ に変えて正の数にし、③ 合計で割って確率にする。", height=260)
+    return
+
+
+@app.cell(hide_code=True)
+def _(SOFTMAX_PROBS, mo, np):
+    _p = SOFTMAX_PROBS
+    mo.md(rf"""
+    $e^{{s}}$ は、スコアが負でも正の値になり、スコアの大小の順番はそのまま保たれます。それを合計で割るので、確率はすべて正で、合計は1になります。
+    スコアが最も大きい「晴れ」が、確率も最も大きいクラス（約{_p[0]:.0%}）で、予報は「晴れ」になります。
+
+    損失の考え方は二値分類と同じで、**正解のクラスに与えた確率の $-\log$** です。$i$ 番目のデータの正解のクラスを $y_i$ とすると、
+
+    $$\ell_i = -\log p_{{i,\,y_i}}$$
+
+    実際の天気が「くもり」なら損失は $-\log {_p[1]:.3f} \approx {-np.log(_p[1]):.2f}$、「雨」なら $-\log {_p[2]:.3f} \approx {-np.log(_p[2]):.2f}$ です。
+    予測した「晴れ」の確率ではなく、**正解のクラスの確率**を使うことに注意してください。
+    この損失を全データで平均し、勾配降下法で重みを更新する流れは、二値分類とまったく同じです。
+
+    05では、手書き数字の画像を0〜9の10クラスに分類します。そこでも、このsoftmaxと交差エントロピーを使います。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 確認問題
+
+    選ぶと解説が出ます。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_same = mo.ui.radio([
+        "予報が同じなので、交差エントロピーも同じになる",
+        "予報が同じでも、交差エントロピーは異なることがある",
+        "予報が同じなら、自信の強い（確率が0や1に近い）モデルのほうが必ず交差エントロピーが小さい",
+    ], label="**Q1.** 二つのモデルが、複数の日について、どの日も同じ予報（雨・降らない）をしました。二つのモデルの交差エントロピーについて、正しいのはどれですか？")
+    quiz_same
+    return (quiz_same,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_same):
+    check(quiz_same, "予報が同じでも、交差エントロピーは異なることがある",
+          "交差エントロピーは予報したクラスだけでなく、正解に与えた確率から計算します。"
+          "予報が同じでも確率が異なれば損失は異なることがあります。ただし、確率が違っても平均損失が同じになる場合はあります。"
+          "自信が強いモデルは、外したときの損失も大きくなります。")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_sign = mo.ui.radio(["0.2 増える", "0.2 減る", "0.4 減る"],
+                            label="**Q2.** ある $w$ で、損失の傾きが $L'(w) = 0.4$ でした。学習率 $\\eta = 0.5$ で1回更新すると、$w$ はどうなりますか？")
+    quiz_sign
+    return (quiz_sign,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_sign):
+    check(quiz_sign, "0.2 減る",
+          "更新は $w \\leftarrow w - \\eta L'(w) = w - 0.5 \\times 0.4 = w - 0.2$ です。"
+          "傾きが正とは「$w$ を増やすと損失が増える」ことなので、逆向き（小さくする向き）に動きます。動く幅は傾きに学習率を掛けた分です。")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_rate = mo.ui.radio([
+        "学習率を小さくする",
+        "学習率を大きくして、早く谷底に着くようにする",
+        "更新回数を増やせば、そのうち落ち着くので待つ",
+    ], label="**Q3.** 全データで勾配を計算して学習しているのに、損失が上がったり下がったりを繰り返し、いつまでも落ち着きません。まず試すべきことはどれですか？")
+    quiz_rate
+    return (quiz_rate,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_rate):
+    check(quiz_rate, "学習率を小さくする",
+          "一歩が大きすぎて、谷を飛び越えては戻ることを繰り返している可能性があります。"
+          "学習率を大きくすると、飛び越え方がもっとひどくなります。")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_softmax = mo.ui.radio(["−log 0.2 ≈ 1.61", "−log 0.7 ≈ 0.36", "−log (1 − 0.2) ≈ 0.22"],
+                               label="**Q4.** 写真を「犬・猫・鳥」に分類するモデルが、ある写真に犬・猫・鳥の順で確率 $[0.2, 0.7, 0.1]$ を出しました。正解は「犬」でした。この写真の損失はどれですか？")
+    quiz_softmax
+    return (quiz_softmax,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_softmax):
+    check(quiz_softmax, "−log 0.2 ≈ 1.61",
+          "損失は**正解のクラス**（犬）に与えた確率の $-\\log$ です。モデルが最も高い確率を出した「猫」の0.7は使いません。"
+          "正解に0.2しか与えていないので、損失は大きくなります。")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_batch = mo.ui.radio([
+        "一部のデータで勾配を計算しているので、揺れるのは自然。エポックを重ねて全体として下がっているかを見る",
+        "勾配の計算が間違っているので、コードを見直す",
+        "揺れているのは学習に失敗しているからなので、全データのバッチ勾配降下法に切り替える",
+    ], label="**Q5.** 5日分ずつのミニバッチで学習していたら、全データの損失が、更新のたびに少し上がったり下がったりしながら、全体としては下がっていきました。どう考えますか？")
+    quiz_batch
+    return (quiz_batch,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_batch):
+    check(quiz_batch, "一部のデータで勾配を計算しているので、揺れるのは自然。エポックを重ねて全体として下がっているかを見る",
+          "ミニバッチで計算した勾配は、全データで計算した勾配と少しずれるので、全データの損失が揺れることがあります。"
+          "全体として下がっているかを確認します。いつまでも落ち着かない場合は学習率も疑います。")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## まとめ
+
+    - **分類のモデルは確率を出す。** スコア $s = wx + b$ をsigmoid（3クラス以上ならsoftmax）で確率に変え、確率が最も大きいクラスを予測とする。特徴量が二つなら、予測の境目（決定境界）は直線になる。
+    - **損失は交差エントロピー。** 正解に与えた確率 $q$ の $-\log$ を平均する。自信を持って外すほど大きい。
+    - **勾配降下法で学習する。** 傾き（勾配）と逆の向きに、学習率 $\eta$ を掛けた分だけパラメータを動かす。$\eta$ が小さすぎると遅く、大きすぎると損失が増えたり落ち着かなかったりする。
+    - **データが多いときはミニバッチで勾配を計算する。** 損失は揺れながら下がる。
+
+    **この章の確認：** 勾配と逆向きに更新する理由と、学習率が大きすぎる場合の結果を説明できれば完了です。
+
+    ここで小さくしたのは、学習に使ったデータ（訓練データ）の損失です。まだ見ていないデータでもよい予測ができるかは、02と同じく検証データで確かめます。
+
+    次の04では、直線では分けられないデータをニューラルネットワークで分類し、逆伝播で勾配を求めます。
+
+    ### もっと詳しく読むとき（任意）
+
+    岡崎直観ほか『機械学習帳』の
     [二値分類](https://chokkan.github.io/mlnote/classification/01binary.html)、
     [多クラス分類](https://chokkan.github.io/mlnote/classification/02multi.html)、
-    [確率的勾配降下法](https://chokkan.github.io/mlnote/regression/04sgd.html)。
+    [確率的勾配降下法](https://chokkan.github.io/mlnote/regression/04sgd.html)
+    が、この章に対応します。
     """)
     return
 

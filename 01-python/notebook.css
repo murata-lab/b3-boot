@@ -1,0 +1,14 @@
+/* 01 の見た目。Python セルの編集 UI は marimo のまま残す。 */
+
+/* 本文は表示専用。リンクなど本文内の操作は使えるようにする。 */
+.marimo-cell.borderless:has(.markdown.prose) {pointer-events:none}
+.marimo-cell:has(.markdown.prose) [data-testid="cell-editor"] {display:none !important}
+.marimo-cell.borderless:has(.markdown.prose) .output-area :is(a,button,input,select,textarea,[role="button"],[role="radio"]) {pointer-events:auto}
+
+/* 補助セルのコード欄は学生に見せない。 */
+[data-testid="cell-editor"].opacity-20 {display:none !important}
+.marimo-cell:has([data-testid="cell-editor"].opacity-20):not(:has(.output-area)) {display:none !important}
+
+/* セル右端のくるくる（marimoの「未実行・古い結果」の印）。説明のセルにも常に出て意味が分からないので隠す。
+   実行が必要なセルは ▶ が黄色になるので、それで分かる。 */
+[data-testid="cell-status"][data-status="outdated"] {display:none !important}

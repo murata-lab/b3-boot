@@ -182,6 +182,41 @@ function segmented(labels, active, onpick, aria) {
 
 const FIGURES = {};
 
+FIGURES.dataRoles = () => (width) => {
+  const compact = width < 590;
+  const W = compact ? 360 : 760;
+  const H = compact ? 328 : 146;
+  const s = svg('svg', { width: Math.min(width, W), height: Math.min(width, W) * H / W,
+    viewBox: `0 0 ${W} ${H}`, style: 'margin:0 auto', role: 'img',
+    'aria-label': '訓練データで重みを求め、検証データでモデルを選び、テストデータで最後に確かめる' }, root);
+  const stages = [
+    ['訓練データ', '重みを求める', COLOR.train, '#eef5fd'],
+    ['検証データ', '次数・λを選ぶ', COLOR.valid, '#fff3ed'],
+    ['テストデータ', '最後に確かめる', COLOR.ink, COLOR.wash],
+  ];
+  const boxW = compact ? 300 : 216;
+  const boxH = compact ? 78 : 100;
+  stages.forEach(([title, role, stroke, fill], i) => {
+    const x = compact ? 30 : 8 + i * 268;
+    const y = compact ? 8 + i * 108 : 12;
+    svg('rect', { x, y, width: boxW, height: boxH, rx: 11, fill, stroke, 'stroke-width': 1.5 }, s);
+    text(s, x + boxW / 2, y + (compact ? 31 : 40), title,
+      { 'text-anchor': 'middle', class: 'strong', style: 'font-size:17px' });
+    text(s, x + boxW / 2, y + (compact ? 56 : 71), role,
+      { 'text-anchor': 'middle', class: 'ink', style: 'font-size:14px' });
+    if (i < 2) {
+      if (compact) {
+        svg('path', { d: `M180,${y + boxH + 4}v20m-5,-5l5,5 5,-5`, fill: 'none',
+          stroke: COLOR.muted, 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s);
+      } else {
+        const ax = x + boxW + 7;
+        svg('path', { d: `M${ax},62h36m-6,-5l6,5 -6,5`, fill: 'none',
+          stroke: COLOR.muted, 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s);
+      }
+    }
+  });
+};
+
 FIGURES.rentScatter = (d) => (width) => {
   const c = chart(root, { width, height: Math.min(340, width * 0.62 + 40), xlim: [10, 50], ylim: [0, 12],
     xticks: [10, 20, 30, 40, 50], yticks: [0, 3, 6, 9, 12], xlabel: '広さ（㎡）', ylabel: '家賃（万円）',
@@ -220,6 +255,7 @@ FIGURES.pipeline = () => (width) => {
 };
 
 FIGURES.residualSquares = (d) => (width) => {
+  const compact = width < 650;
   const c = chart(root, { width, height: Math.min(360, width * 0.66 + 40), xlim: [10, 50], ylim: [0, 12],
     xticks: [10, 20, 30, 40, 50], yticks: [0, 3, 6, 9, 12], xlabel: '広さ（㎡）', ylabel: '家賃（万円）',
     label: '5件の部屋と直線、残差と二乗誤差の正方形' });
@@ -228,39 +264,56 @@ FIGURES.residualSquares = (d) => (width) => {
     const p = d.w * a + d.b, px = c.x(a), side = Math.abs(c.y(p) - c.y(r)), top = Math.min(c.y(p), c.y(r));
     svg('rect', { x: px, y: top, width: side, height: side, fill: COLOR.valid, 'fill-opacity': 0.14, stroke: COLOR.valid, 'stroke-width': 1.2 }, c.plot);
     svg('line', { x1: px, x2: px, y1: c.y(p), y2: c.y(r), stroke: COLOR.ink, 'stroke-width': 1.5 }, c.plot);
-    // 残差が小さい点は、ラベルを直線から離れる側に置く
-    const ly = side > 16 ? top + side / 2 + 4 : (r > p ? c.y(r) - 10 : c.y(r) + 18);
-    text(c.over, px + (side > 16 ? side + 8 : 4), ly, `(${num(p - r)})² = ${num((p - r) ** 2)}`, { class: 'ink' });
+    // 点から直線と反対側へ離し、ラベルを直線と重ねない。
+    if (!compact) {
+      const ly = r > p ? c.y(r) - 16 : c.y(r) + 22;
+      text(c.over, px + (side > 16 ? side + 8 : 4), ly, `(${num(p - r)})² = ${num((p - r) ** 2)}`, { class: 'ink' });
+    }
   }
   dots(c, d.points, COLOR.train, p => `広さ ${p[0]}㎡　家賃 ${p[1]}万円　予測 ${num(d.w * p[0] + d.b)}万円`);
   text(c.over, c.x(11), c.y(d.w * 11 + d.b) - 14, `$ŷ$ = ${d.w}$x$ + ${d.b}`, { class: 'ink' });
+  if (compact) {
+    root.append(legend(d.points.map(([a, r]) => {
+      const residual = d.w * a + d.b - r;
+      return ['dot', COLOR.train, `${a}㎡：(${num(residual)})² = ${num(residual ** 2)}`];
+    })));
+  }
 };
 
 FIGURES.landscape = (d) => {
   // stage 0: いろいろ試す → 1: 地形を表示 → 2: 谷底を表示
-  const state = { current: null, trail: [], stage: 0 };
+  const state = { current: null, trail: [], stage: 0, unlocked: 0 };
   const loss = (w, b) => d.points.reduce((s, [x, y]) => s + (w * x + b - y) ** 2, 0) / d.points.length;
   const bestLoss = loss(...d.best);
   const STEPS = ['① いろいろな $w$, $b$ を試す', '② 損失の地形を見る', '③ 谷底を確かめる'];
-  const TRIES = 4;
+  const TRIES = 3;
   let ui = null;
+
+  function go(stage) {
+    state.stage = stage;
+    state.unlocked = Math.max(state.unlocked, stage);
+    state.current = stage === 2 ? [...d.best] : state.trail.length ? state.trail[state.trail.length - 1].slice(0, 2) : null;
+    update();
+  }
 
   function update() {
     const { left, right, bands, heading, steps, status, actions, leftLegend, rightLegend } = ui;
     const n = state.trail.length;
     steps.replaceChildren(...STEPS.map((s, i) =>
-      html('span', { class: 'step' + (i === state.stage ? ' now' : i < state.stage ? ' done' : ''), html: richHTML(s) })));
+      html('button', { type: 'button', class: 'step' + (i === state.stage ? ' now' : i < state.stage ? ' done' : ''),
+        'aria-pressed': String(i === state.stage), ...(i > state.unlocked ? { disabled: '' } : {}),
+        html: richHTML(s), onclick: () => { if (i <= state.unlocked) go(i); } })));
     status.innerHTML = richHTML(
       state.stage === 2 ? `★が谷底です。左の直線が、30件全体でMSEが最も小さくなる直線です（MSE ${num(bestLoss)}）。`
-      : state.stage === 1 ? 'これが、このデータの損失の地形です。試した点の色と見比べてください。白い谷のどこが一番低いか、平面を押して探してから「谷底を表示」で確かめましょう。'
+      : state.stage === 1 ? `これが、このデータの損失の地形です。${n ? '試した点の色と見比べてください。' : '平面の点を押すと、その場所の直線とMSEが分かります。'}白い谷のどこが一番低いか、平面を押して探してから「谷底を表示」で確かめましょう。`
       : n === 0 ? '右の平面のどこかを押してください。押した場所の $w$, $b$ の直線が左に描かれ、MSEが計算されます。'
-      : n < TRIES ? `ほかの場所も押してみてください（あと${TRIES - n}か所）。試した点は、MSEが小さいほど白く、大きいほど濃い青で残ります。`
+      : n < TRIES ? 'ほかの場所も試し、直線とMSEを見比べてください。試した点は、MSEが小さいほど白く、大きいほど濃い青で残ります。'
       : 'MSEが小さい（白い）点は、どのあたりに並んでいますか？ 見当がついたら、平面全体のMSEを表示してみましょう。');
     // ボタンは、押す意味がある段階でだけ出す
     const buttons = [];
-    if (state.stage === 0 && n >= TRIES) buttons.push(html('button', { class: 'btn primary', type: 'button', text: '損失の地形を表示', onclick: () => { state.stage = 1; update(); } }));
-    if (state.stage === 1) buttons.push(html('button', { class: 'btn primary', type: 'button', text: '谷底を表示', onclick: () => { state.stage = 2; state.current = [...d.best]; update(); } }));
-    if (n > 0) buttons.push(html('button', { class: 'btn', type: 'button', text: 'はじめからやり直す', onclick: () => { Object.assign(state, { current: null, trail: [], stage: 0 }); update(); } }));
+    if (state.stage === 0 && n >= TRIES) buttons.push(html('button', { class: 'btn primary', type: 'button', text: '損失の地形を表示', onclick: () => go(1) }));
+    if (state.stage === 1) buttons.push(html('button', { class: 'btn primary', type: 'button', text: '谷底を表示', onclick: () => go(2) }));
+    if (n > 0) buttons.push(html('button', { class: 'btn', type: 'button', text: 'はじめからやり直す', onclick: () => { Object.assign(state, { current: null, trail: [], stage: 0, unlocked: 0 }); update(); } }));
     actions.replaceChildren(...buttons);
     bands.style.display = state.stage >= 1 ? '' : 'none';
     heading.textContent = state.stage >= 1 ? '損失の地形（色が濃いほどMSEが大きい）' : '傾き w と切片 b の平面';
@@ -301,7 +354,9 @@ FIGURES.landscape = (d) => {
     w = Math.min(d.wlim[1], Math.max(d.wlim[0], w));
     b = Math.min(d.blim[1], Math.max(d.blim[0], b));
     state.current = [w, b];
-    if (remember) state.trail.push([w, b, loss(w, b)]);
+    if (remember && !state.trail.some(([pw, pb]) => Math.hypot((w - pw) / (d.wlim[1] - d.wlim[0]), (b - pb) / (d.blim[1] - d.blim[0])) < 0.05)) {
+      state.trail.push([w, b, loss(w, b)]);
+    }
     update();
   }
 
@@ -309,7 +364,7 @@ FIGURES.landscape = (d) => {
     const steps = html('div', { class: 'steps' });
     const status = html('p', { class: 'status', role: 'status' });
     const actions = html('div', { class: 'actions' });
-    root.append(steps, status, actions);
+    root.append(html('div', { class: 'toolbar' }, [steps, actions]), status);
     const leftLegend = html('div', { class: 'legend' });
     const rightLegend = html('div', { class: 'legend' });
     const heading = html('h4');
@@ -447,7 +502,7 @@ FIGURES.fitExplorer = (d) => {
 
     const leftPanel = html('div', { class: 'panel' }, [legend([
       ['dot', COLOR.train, '訓練データ'], ['ring', COLOR.valid, '検証データ'], ['line', COLOR.ink, '学習した曲線'],
-      ['thin', COLOR.ghost, '別の時刻に測っていたら'], ['dash', COLOR.muted, '本当の変化']])]);
+      ['thin', COLOR.ghost, '測り直したデータで学習'], ['dash', COLOR.muted, '本当の変化']])]);
     const rightPanel = html('div', { class: 'panel' }, [html('div', { class: 'legend' }, [
       legendItem('line', COLOR.train, `訓練MSE <b>${num(step.train)}</b>`),
       legendItem('line', COLOR.valid, `検証MSE <b>${num(step.valid)}</b>`),

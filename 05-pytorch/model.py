@@ -16,6 +16,6 @@ class MLP(nn.Module):
     def forward(self, x):
         # model(x)で呼ばれる計算。Bは一度に渡した画像の枚数。
         x = self.flatten(x)
-        h = self.relu(self.hidden(x))  # [B, 784] → [B, 128]
+        h = self.relu(self.hidden(x))  # [B, 784] → [B, 隠れ層のニューロン数]
         # [B, 10]のスコアを返す。CrossEntropyLossへ渡すためsoftmaxはしない。
         return self.output(h)

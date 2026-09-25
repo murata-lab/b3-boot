@@ -1,8 +1,13 @@
-/* 02 の見た目。本文を読みやすい幅と行間にそろえ、学生に不要な marimo の操作UIを隠す。 */
+/* 05 の見た目（02と同じ）。本文を読みやすい幅と行間にそろえ、学生に不要な marimo の操作UIを隠す。
+   05 は edit 画面で開くので、コードセルの編集・実行の部品は残す。 */
 
 /* 右上の「…」メニューと、右端の目次ミニマップ */
 [data-testid="notebook-actions-dropdown"],
 .fixed.right-8.hidden.md\:block {display:none !important}
+
+/* セル右端のくるくる（marimoの「未実行・古い結果」の印）。説明のセルにも常に出て意味が分からないので隠す。
+   実行が必要なセルは ▶ が黄色になるので、それで分かる。 */
+[data-testid="cell-status"][data-status="outdated"] {display:none !important}
 
 :root {
   --lesson-ink:#1f2a37;
@@ -24,6 +29,7 @@
   margin:2.6em 0 .7em;padding-top:1.1em;border-top:1px solid var(--lesson-line);
 }
 .markdown.prose h3 {font-size:18px;font-weight:650;margin:1.8em 0 .4em}
+.markdown.prose h2,.markdown.prose h3 {font-family:inherit}
 .markdown.prose :is(ul,ol) {margin:.9em 0;padding-left:1.3em}
 .markdown.prose li {margin:.3em 0}
 .markdown.prose li::marker {color:#9aa6b2}
@@ -48,25 +54,21 @@
 /* 図の iframe は枠なしで本文に溶け込ませ、前後の文章から少し離す（marimo のセルの余白 14.4px と相殺されるので、それより大きくする） */
 iframe {display:block;border:0;width:100%;margin:22px 0}
 
-/* 予想・確認問題の選択肢 */
-:host(marimo-radio) .mo-label {flex-direction:column;align-items:flex-start;gap:10px;width:100%;font-size:15.5px;line-height:1.8}
-:host(marimo-radio) [role="radiogroup"] {display:flex;flex-direction:column;gap:6px;width:100%}
-:host(marimo-radio) [role="radiogroup"] > div {padding:9px 14px;border:1px solid #d5dce3;border-radius:9px;width:100%;cursor:pointer}
-:host(marimo-radio) [role="radiogroup"] > div:hover {background:#f6f8fa}
-:host(marimo-radio) [role="radiogroup"] > div:has([data-state="checked"]) {border-color:#1f2a37;background:#f3f6f9}
-:host(marimo-radio) [role="radiogroup"] > div:has(button:focus-visible) {outline:3px solid #86b6ef;outline-offset:2px}
-
 @media (max-width:600px) {
+  .markdown.prose table {display:block;overflow-x:auto}
+  .markdown.prose td:last-child,.markdown.prose th:last-child {white-space:nowrap}
   .hero {padding-top:20px}
   .hero h1 {font-size:27px}
   .markdown.prose h2 {font-size:20px}
 }
 
-/* コード欄：01のmarimoのセルに似せる（枠、右上の ▶、実行後にだけ出る下の出力欄）。幅は本文と同じ */
-.pycell {position:relative;margin:24px 0 12px;border:1px solid #e4dfcf;border-radius:10px;background:#fff}
-.pycell-output {border-top:1px solid #efe9d8;border-radius:0 0 10px 10px;background:#fdfcf8;padding:10px 16px}
-.pycell-output pre {margin:0}
-:host(marimo-form) form > div {padding:0 !important;gap:0 !important}
-:host(marimo-form) form > div > div:last-child {position:absolute;top:-14px;right:12px;z-index:2}
-:host(marimo-form) form > div > div:last-child button {width:28px;height:28px;min-width:0;padding:0;border-radius:999px;border:1px solid #d9dde3;background:#fff;color:#1f2a37;font-size:11px;box-shadow:none}
-:host(marimo-form) form > div > div:last-child button:hover {background:#fef9c3;border-color:#e5d56a}
+/* edit画面：コードを隠したセル（図・計算結果を使う本文）に薄く出る1行のコードと枠を隠す。学生が読むコードセルはそのまま */
+[data-testid="cell-editor"].opacity-20 {display:none !important}
+.marimo-cell:has([data-testid="cell-editor"].opacity-20) {border-color:transparent !important;box-shadow:none !important;background:transparent !important}
+.marimo-cell:has([data-testid="cell-editor"].opacity-20):not(:has(.output-area)) {display:none !important}
+/* 本文だけを表示専用にし、Python のコードセルは編集可能なまま残す。 */
+.marimo-cell.borderless:has(.markdown.prose) {pointer-events:none}
+.marimo-cell:has(.markdown.prose) [data-testid="cell-editor"] {display:none !important}
+.marimo-cell.borderless:has(.markdown.prose) .output-area :is(a,button,input,select,textarea,[role="button"],[role="radio"]) {pointer-events:auto}
+/* edit画面の出力欄は高さ610pxで切れるので、図（iframe）だけは全体を表示する */
+.marimo-cell.interactive .output-area:has(iframe) {max-height:none !important;overflow:visible !important}

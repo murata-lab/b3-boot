@@ -46,12 +46,6 @@ button.step:hover{background:#e3e9ef}
 button.step.now:hover{background:var(--ink)}
 .status{font-size:14.5px;line-height:1.75;color:var(--ink);min-height:1.75em;margin:0 0 10px}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;min-height:36px}
-/* 段階の表示とボタンを1行に並べる。ボタンの場所は空でも確保し、出たときに図がずれないようにする */
-.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 10px}
-.toolbar .steps,.toolbar .actions{margin:0}
-.toolbar .actions{margin-left:auto}
-.toolbar + .status{margin-bottom:16px}
-@media (max-width:560px){.toolbar .actions{flex-basis:100%;margin-left:0}}
 .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .btn.primary:hover{background:#34414f}
 .legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13.5px;color:var(--ink-2);margin:0 0 8px;font-variant-numeric:tabular-nums}
@@ -59,6 +53,37 @@ button.step.now:hover{background:var(--ink)}
 .key{display:inline-flex;align-items:center;gap:6px}
 .m{font-family:"Times New Roman","STIX Two Text",Times,serif;font-style:italic;font-size:1.1em}
 .legend svg{display:inline-block}
+.row.grid4{gap:14px 20px}
+.row.grid4 .panel{flex:1 1 150px}
+.row.grid4 .panel h4{font-size:13.5px;margin:0 0 2px}
+.row.grid4 .panel h4 span{display:block;margin:0;font-size:12.5px}
+svg text.grad{fill:#c4531d;font-weight:600}
+.chain-head{font-size:13.5px;color:var(--ink-2);margin:0 0 10px}
+.chain{display:flex;align-items:stretch;gap:4px}
+.chain-node{flex:0 0 auto;min-width:74px;border:1px solid var(--axis);border-radius:10px;padding:8px 10px;text-align:center;background:#f4f8fe}
+.chain-node.last{border-color:#c4531d}
+.chain-node.focus{border-color:#2a78d6;background:#eaf2fc}
+.chain.anatomy{margin-top:14px}
+.chain.anatomy .chain-op .note{font-size:12.5px;color:var(--ink-2)}
+.chain-node .name{font-size:16px;font-weight:600}
+.chain-node .delta{font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.chain-op{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 2px}
+.chain-op .times{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.chain-op .arrow{width:100%;height:10px;position:relative}
+.chain-op .arrow::before{content:"";position:absolute;left:4px;right:8px;top:4px;border-top:1.6px solid var(--muted)}
+.chain-op .arrow::after{content:"";position:absolute;right:2px;top:0;border:5px solid transparent;border-left:8px solid var(--muted);border-right:0}
+.chain-op .note{font-size:12px;line-height:1.5;color:var(--muted);margin-top:2px}
+.chain.vertical{flex-direction:column;align-items:stretch;gap:0}
+.chain.vertical .chain-node{display:flex;justify-content:space-between;align-items:center;text-align:left}
+.chain.vertical .chain-op{flex-direction:row;justify-content:flex-start;gap:10px;padding:4px 0 4px 26px;text-align:left}
+.chain.vertical .chain-op .arrow{width:10px;height:26px;flex:0 0 10px}
+.chain.vertical .chain-op .arrow::before{left:4px;right:auto;top:0;bottom:8px;border-top:0;border-left:1.6px solid var(--muted)}
+.chain.vertical .chain-op .arrow::after{right:auto;left:0;top:auto;bottom:0;border:5px solid transparent;border-top:8px solid var(--muted);border-bottom:0}
+.chain.vertical .chain-op .times{order:-1;min-width:64px;text-align:right}
+.reveal{animation:reveal .35s ease-out both}
+.reveal.late{animation-delay:.5s}
+@keyframes reveal{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.reveal{animation:none}}
 .tip{position:fixed;left:0;top:0;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;line-height:1.5;padding:5px 9px;border-radius:6px;
   white-space:nowrap;opacity:0;transition:opacity .08s;z-index:10}
 </style>

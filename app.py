@@ -25,6 +25,7 @@ CHAPTERS = [
     dict(id="03-classification", number="03", title="線形分類と勾配降下法", description="分類のしくみと、重みを学習する流れ。", mode="run"),
     dict(id="04-neural-networks", number="04", title="ニューラルネットワークと逆伝播", description="小さなネットワークで、予測から更新まで。", mode="run"),
     dict(id="05-pytorch", number="05", title="PyTorchによる学習と評価", description="コードを実行し、学習した重みで数字を読む。", mode="edit"),
+    dict(id="06-feature-space", number="06", title="特徴空間と次元削減（任意）", description="モデルの中間表現をPCA・Isomap・UMAPで見る。", mode="run"),
 ]
 
 
@@ -65,8 +66,9 @@ class Lessons:
                 command.append("--skip-update-check")
             try:
                 options = {}
-                if chapter_id == "05-pytorch":
-                    # Populate real code-cell outputs on opening; later edits use lazy execution.
+                if chapter["mode"] == "edit":
+                    # Run every cell on opening. Otherwise marimo leaves cells unrun and marks each
+                    # with a "not yet run" icon. In 05, later edits still use lazy execution.
                     options["env"] = {**os.environ, "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE": "true"}
                 process = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=log, **options)
             except OSError:
@@ -170,7 +172,7 @@ def make_server(port, lessons):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="B3 機械学習入門の教材を開きます。")
+    parser = argparse.ArgumentParser(description="機械学習入門の教材を開きます。")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
@@ -180,7 +182,7 @@ def main():
     except OSError as error:
         parser.exit(1, f"起動できませんでした: {error}\n別のポートを使う場合: uv run python app.py --port 8001\n")
     url = f"http://127.0.0.1:{server.server_port}/"
-    print(f"\nB3 機械学習入門: {url}\n終了するには Ctrl+C を押してください。\n", flush=True)
+    print(f"\n機械学習入門: {url}\n終了するには Ctrl+C を押してください。\n", flush=True)
     if not args.no_browser:
         threading.Timer(0.3, webbrowser.open, args=(url,)).start()
     def interrupt(_signum, _frame):

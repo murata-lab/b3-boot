@@ -46,12 +46,6 @@ button.step:hover{background:#e3e9ef}
 button.step.now:hover{background:var(--ink)}
 .status{font-size:14.5px;line-height:1.75;color:var(--ink);min-height:1.75em;margin:0 0 10px}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;min-height:36px}
-/* 段階の表示とボタンを1行に並べる。ボタンの場所は空でも確保し、出たときに図がずれないようにする */
-.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 10px}
-.toolbar .steps,.toolbar .actions{margin:0}
-.toolbar .actions{margin-left:auto}
-.toolbar + .status{margin-bottom:16px}
-@media (max-width:560px){.toolbar .actions{flex-basis:100%;margin-left:0}}
 .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .btn.primary:hover{background:#34414f}
 .legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13.5px;color:var(--ink-2);margin:0 0 8px;font-variant-numeric:tabular-nums}
@@ -59,8 +53,8 @@ button.step.now:hover{background:var(--ink)}
 .key{display:inline-flex;align-items:center;gap:6px}
 .m{font-family:"Times New Roman","STIX Two Text",Times,serif;font-style:italic;font-size:1.1em}
 .legend svg{display:inline-block}
-.tip{position:fixed;left:0;top:0;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;line-height:1.5;padding:5px 9px;border-radius:6px;
-  white-space:nowrap;opacity:0;transition:opacity .08s;z-index:10}
+.tip{position:fixed;left:0;top:0;pointer-events:none;display:flex;align-items:center;gap:10px;background:#fff;color:var(--ink);font-size:14px;line-height:1.7;padding:10px;border:1px solid #cbd5df;border-radius:8px;
+  box-shadow:0 5px 22px #1f2a3726;white-space:nowrap;opacity:0;transition:opacity .08s;z-index:10}
 </style>
 </head>
 <body>

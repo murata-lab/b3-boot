@@ -1,7 +1,11 @@
 import marimo
 
 __generated_with = "0.24.0"
-app = marimo.App(width="medium", app_title="01 Python入門")
+app = marimo.App(
+    width="medium",
+    app_title="01 Python入門",
+    css_file="notebook.css",
+)
 
 
 @app.cell(hide_code=True)
@@ -13,28 +17,33 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
+    def check(choice, answer, explanation):
+        # 選択肢の答え合わせ。選ぶまでは解説を表示しない。
+        if choice.value is None:
+            return None
+        correct = choice.value == answer
+        head = '**正解です。**' if correct else f'**正解は「{answer}」です。**'
+        return mo.callout(mo.md(head + ' ' + explanation), kind='success' if correct else 'warn')
+
+    return (check,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
     mo.md("""
     # 01 Python入門
 
-    プログラミングを学んだことがあり、Pythonはこれからという人向けの章です。
-    環境の準備を終え、marimoを開いているところから始めます。
-    読む時間の目安は10〜20分です（環境準備を除く）。
+    Pythonの基本構文を、コードを動かしながら学びます。最後にNumPyの配列とグラフを扱います。
 
-    この章では変数・リスト・条件分岐・ループ・関数を読み、
-    ライブラリを使って小さなグラフを描きます。
-    クラスを自分で定義する文法は、05でモデルを作る直前に扱います。
+    **この章の目標：** 関数の戻り値を計算に使い、配列の形を読めるようになることです。
 
     ### この画面の使い方
 
-    コードを入力する一つの区切りが**セル**です。例は実行できる状態で用意してあります。
-    コードを変えるときは、ブラウザ内のそのセルを編集して `Shift+Enter` で実行します。
-    結果は同じブラウザのセルに対応する出力欄に出ます。
-    `print(...)` の結果は標準出力欄に、最後に置いた式の値はセルの出力に表示されます。
+    コードを入力する区切りを**セル**と呼びます。セルを編集し、右上の ▶ で実行します（`Ctrl+Enter`、Macでは `⌘+Enter` でも実行できます）。結果はセルの下に出ます。
 
     marimoでは、あるセルが使う変数を変更すると、関係するセルも再計算されます。
     同じ変数を別のセルで再定義せず、**元のセルを書き換えて**ください。
-    自動実行を止めている場合は、変更後に実行待ちのセルも実行します。
-    ターミナル用のコマンドはPythonのセルに入力しません。
+    実行待ちのセルがあれば、そのセルも実行してください。
     """)
     return
 
@@ -59,7 +68,8 @@ def _():
 
 @app.cell
 def _():
-    print(2 + 3)
+    print(2 + 3)  # 足し算の結果を表示
+    # print(100)
     return
 
 
@@ -67,12 +77,12 @@ def _():
 def _(mo):
     mo.md("""
     文字の出力は `Hello, world!`、足し算の結果は `5` です。
+    文字列の外に書いた `#` から行末までは**コメント（comment）**です。
+    `print(2 + 3)` の右側にも、何をする行かをコメントで書いています。
+
     Pythonは行末のセミコロンを必要としません。
     掛け算は `*`、割り算は `/`、累乗は `**` で書きます。
     例えば `2 ** 3` は $2^3 = 8$ です。
-
-    文字列の外に書いた `#` から行末までは**コメント**になり、実行されません。
-    コードの意図や注意点をメモできます。
     """)
     return
 
@@ -442,31 +452,114 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    ## 9. Matplotlibで3点を結ぶ
+    ## 9. NumPy：数の並びをまとめて計算する
 
-    Matplotlibはグラフを描く**追加ライブラリ**です。
-    すでにこの環境に入っていれば、そのまま下にグラフが表示されます。
+    機械学習では、何人分・何枚分ものデータに同じ計算をします。
+    **NumPy**は、数の並び（**配列**）をまとめて計算するための追加ライブラリです。
+    この教材の環境には導入済みなので、`import` するだけで使えます。
 
-    未導入の場合は、**別のターミナル**を開き、教材のルートへ移動します。
-    `pwd` と `ls` で `README.md` と `SETUP.md` のある場所だと確認してから、次を入力します。
+    `import numpy as np` の `as np` は、長いモジュール名に `np` という別名を付けます。
+    `np.array([...])` で、リストから配列を作ります。
+    """)
+    return
 
-    ```sh
-    uv add matplotlib
-    ```
 
-    これはプロジェクトにライブラリを追加する操作です。完了すると依存関係を記録する
-    `pyproject.toml` と `uv.lock`、実行環境の `.venv` が更新されます。
-    その後、marimoを起動したターミナルで `Ctrl+C` を押し、同じ教材ルートから再開します。
+@app.cell
+def _():
+    import numpy as np
 
-    ```sh
-    uv run python app.py
-    ```
+    hours = np.array([1.0, 2.0, 3.0])
+    print(hours * 2)
+    print(hours + 1)
+    return hours, np
 
-    ブラウザでこの節に戻ると、下に3点を結ぶグラフが出ます。
-    **`uv add` は環境へ追加する操作、`import` はコードから読み込む操作**です。
-    追加済みでも、使うコードでは `import` が必要です。
 
-    `import matplotlib.pyplot as plt` の `as plt` は、長いモジュール名に別名を付けます。
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    出力は `[2. 4. 6.]` と `[2. 3. 4.]` です。
+    `* 2` や `+ 1` が、**各要素に**同じように計算されます。
+    5節では `for` で一つずつ2倍しましたが、配列ならループを書かずに済みます。
+    `2.` の点は、小数（浮動小数点数）であることを表しています。
+
+    リストでは、同じ書き方が別の意味になります。`[1, 2, 3] * 2` はリストを2回つなげた
+    `[1, 2, 3, 1, 2, 3]` です。数としてまとめて計算したいときは配列を使います。
+
+    ### 予測と誤差を、3人分まとめて計算する
+
+    02では、入力 $x$ から数値を $\hat y = wx + b$ の形の式で予測します。
+    ここでは小さな例として、学習時間1・2・3時間の3人の得点を予測します。次のセルは、3人分の予測を一度に計算し、
+    実際の得点との差（誤差）と、その二乗の平均を求めています。
+    """)
+    return
+
+
+@app.cell
+def _(hours, np):
+    w = 1.5
+    b = 0.5
+    predictions = w * hours + b
+    scores = np.array([2.0, 3.0, 5.0])
+    errors = predictions - scores
+    print(predictions)
+    print(errors)
+    print(np.mean(errors ** 2))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    予測は `[2.  3.5 5. ]`、誤差は `[0.  0.5 0. ]` です。
+    最後の行は誤差を二乗して平均した値で、約 `0.0833` です。
+    `np.mean` は配列の平均を返す関数です。この「二乗誤差の平均」は、02で**MSE**として詳しく扱います。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ### 配列の形（shape）
+
+    表のように行と列を持つ配列も作れます。
+    `.shape` は配列の**形**を表す属性で、各方向にいくつ要素があるかを示します。
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    table = np.array([[1, 2, 3], [4, 5, 6]])
+    print(table.shape)
+    print(table[1, 0])
+    print(table.mean(axis=0))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    `table.shape` は `(2, 3)` で、「2行3列」という意味です。
+    `table[1, 0]` は2行目の先頭の `4` です。3節の `rows[1][0]` と同じく、行・列の順に0から数えます。
+    `table.mean(axis=0)` は縦方向に平均を取り、列ごとの平均 `[2.5 3.5 4.5]` を返します。
+
+    機械学習では、この形を読む場面がとても多くあります。
+    例えば05では、28×28画素の白黒画像128枚をまとめて、形が `[128, 1, 28, 28]` の配列として扱います。
+    **形が合わない配列同士を計算するとエラーになる**ことが多いので、
+    うまく動かないときは、まず `.shape` を表示して確かめます。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## 10. Matplotlibで3点を結ぶ
+
+    Matplotlibはグラフを描く**追加ライブラリ**です。NumPyと同じく、この環境には導入済みです。
+
+    `import matplotlib.pyplot as plt` の `as plt` も、長いモジュール名に別名を付けています。
     `plt.subplots()` が返す二つの値を `fig, ax` で受け取ります。
     `fig` は図全体、`ax` はグラフを描く領域です。
     `ax.plot(...)` はその領域の描画メソッドを呼びます。
@@ -476,21 +569,8 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _():
-    import importlib.util
-
-    matplotlib_available = importlib.util.find_spec("matplotlib") is not None
-    return (matplotlib_available,)
-
-
 @app.cell
-def _(matplotlib_available, mo):
-    mo.stop(
-        not matplotlib_available,
-        mo.md("Matplotlibが未導入です。上の手順で追加し、marimoを再起動するとグラフが表示されます。"),
-    )
-
+def _():
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
@@ -503,8 +583,6 @@ def _(matplotlib_available, mo):
 def _(mo):
     mo.md("""
     初期状態では $(1, 2)$、$(2, 4)$、$(3, 6)$ を結ぶ直線が表示されます。
-    セル冒頭の `mo.stop(...)` は、Matplotlibが未導入ならここで実行を止めて案内を出す、教材用の処理です。
-    描画の例は `import matplotlib.pyplot as plt` から始まります。
     最後の `fig` は、図をセルの出力として表示するための式です。
     縦軸のリストだけを `[2, 5, 6]` に変えると、中央の点が上がって折れ線になります。
     横軸と縦軸のリストは同じ長さにします。元に戻すには `[2, 4, 6]` に戻します。
@@ -515,26 +593,120 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    ## 10. 同じPythonをターミナルで実行する
+    ## 11. Pythonファイルをターミナルで実行する
 
     今見ているmarimoは、コードと説明・結果を一緒に読むための道具です。
-    Pythonのコードは、ノートブックを使わず、ターミナルから直接実行することもできます。
-    例えば、次の1行を実行してみます。
+    Pythonのコードを `.py` ファイルに保存して、ターミナルから実行する方法もあります。
+    この教材の `01-python/hello.py` には、次のコードが入っています。
 
     ```python
     print('Hello, world!')
+    print(2 + 3)
     ```
 
-    **別のターミナルを開き、教材ルートで**次を実行してください。
+    **別のターミナルを開き、教材ルートで**ファイル名を指定して実行します。
 
     ```sh
-    uv run python -c "print('Hello, world!')"
+    uv run python 01-python/hello.py
     ```
 
-    出力の `Hello, world!` は、今度はそのターミナルに表示されます。
-    `-c` は、続く引用符の中のPythonコードを実行する指定です。式を最後に置くだけでは値は表示されません。
-    値を表示するときは `print(...)` を使います。
+    ターミナルには次のように表示されます。
+
+    ```text
+    Hello, world!
+    5
+    ```
+
+    Pythonはファイルのコードを上から順に実行します。`print(...)` の結果が、ターミナルに1行ずつ表示されています。
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## 確認問題
+
+    迷ったら、コードを実行して確かめてください。
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_index=mo.ui.radio(['3が表示される','エラーになる','何も表示されない'],label='**Q1.** `values = [1, 2, 3]` のとき、`print(values[3])` を実行するとどうなりますか？')
+    quiz_index
+    return (quiz_index,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_index):
+    check(quiz_index,'エラーになる',
+          '添字は0から数えるので、3個の要素の添字は `0, 1, 2` です。`values[3]` は範囲外なので `IndexError` になります。最後の要素は `values[2]` です。')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_array=mo.ui.radio(['[2 4 6]','[1 2 3 1 2 3]','エラーになる'],label='**Q2.** `np.array([1, 2, 3]) * 2` の結果はどれですか？')
+    quiz_array
+    return (quiz_array,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_array):
+    check(quiz_array,'[2 4 6]',
+          'NumPyの配列では、`* 2` が各要素に計算されます。`[1, 2, 3, 1, 2, 3]` になるのは、配列ではなくリストの `[1, 2, 3] * 2` のときです。')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_shape=mo.ui.radio(['1枚','28枚','128枚'],label='**Q3.** 白黒画像を `[画像の枚数, チャンネル数, 高さ, 幅]` の順に並べた配列の `.shape` が `(128, 1, 28, 28)` です。画像は何枚ありますか？')
+    quiz_shape
+    return (quiz_shape,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_shape):
+    check(quiz_shape,'128枚',
+          '先頭の軸が画像の枚数、次が色のチャンネル数（白黒なので1）、残りの `28, 28` が縦・横の画素数です。')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_return = mo.ui.radio(
+        ['計算結果を返すので、double(5) + 3 は13になる',
+         '画面に10を表示するだけなので、double(5) + 3 はエラーになる',
+         '関数を定義しただけで10が表示され、呼び出すと13になる'],
+        label='**Q4.** `double` が `return 2 * value` を実行する関数です。`double(5) + 3` はどうなりますか？')
+    quiz_return
+    return (quiz_return,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_return):
+    check(quiz_return, '計算結果を返すので、double(5) + 3 は13になる',
+          '`return` で返した10を、その後の `+ 3` に使えます。`print(10)` は表示する操作で、計算に使う値を返す操作とは異なります。')
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    quiz_member = mo.ui.radio(
+        ['table.shape で形を読み、inventory.count(\'薬\') で個数を数える',
+         'table.shape() で形を読み、inventory.count で個数を数える',
+         'table.shape と inventory.count はどちらも括弧なしで結果を読む'],
+        label='**Q5.** 配列 `table` の形と、リスト `inventory` にある「薬」の個数を知りたいとき、どの書き方ですか？')
+    quiz_member
+    return (quiz_member,)
+
+
+@app.cell(hide_code=True)
+def _(check, quiz_member):
+    check(quiz_member, 'table.shape で形を読み、inventory.count(\'薬\') で個数を数える',
+          '`.shape` は形の情報を読む属性なので括弧は付けません。`.count(\'薬\')` は数える処理を呼ぶメソッドなので、調べたい値を括弧に入れます。')
     return
 
 
@@ -548,12 +720,11 @@ def _(mo):
     - `double(5)`：関数に入力を渡し、戻り値を受け取る。
     - `deadline.year`・`inventory.count('薬')`：属性の値を読む・メソッドを呼ぶ。
     - `import math`：モジュールを読み込み、用意された機能を使えるようにする。
+    - `np.array(...)`・`.shape`：配列をまとめて計算し、形を確かめる。
 
-    次の02では、入力から数値を予測する「回帰」を扱います。
-    この章のリストや関数を使う考え方を、データと予測の計算につなげます。
-    02では文章・数式・図と操作で、回帰とモデルの選び方を学びます。コードの入力は不要です。
-    左上の **☰** メニューから「02 回帰とモデルの選び方」を選んで開きます。
-    今日はここで終える場合は、marimoを起動したターミナルで `Ctrl+C` を押します。
+    次の02では、数値を予測する「回帰」を扱います。ここで計算したMSEも、予測のずれを測るために使います。
+
+    **この章の確認：** 戻り値と表示の違い、属性とメソッドの違いを自分の言葉で説明し、配列の形を読めれば完了です。
     """)
     return
 
